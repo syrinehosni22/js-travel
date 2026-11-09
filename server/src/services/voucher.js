@@ -1,0 +1,61 @@
+import PDFDocument from 'pdfkit';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// Emblème blanc du logo (copié depuis client/public/brand)
+const EMBLEM = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../client/public/brand/emblem-white.png');
+import { formatMoney } from '@tt/shared';
+import { t } from './i18n.js';
+
+/** Bon PDF (réservation ou transfert) envoyé au client — §4.4 et §5.3. Renvoie un Buffer. */
+export function voucherPdf(booking, { contact = {}, drivers = {} } = {}) {
+  const lang = booking.lang || 'en';
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  const chunks = [];
+  doc.on('data', (c) => chunks.push(c));
+  const done = new Promise((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
+
+  const green = '#14213D';
+  const gold = '#C9A227';
+  doc.rect(0, 0, doc.page.width, 96).fill(green);
+  doc.rect(0, 96, doc.page.width, 3).fill(gold);
+  if (fs.existsSync(EMBLEM)) doc.image(EMBLEM, doc.page.width - 50 - 64, 16, { width: 64 });
+  doc.fillColor('#FFFFFF').font('Times-Bold').fontSize(24).text('JS Travel', 50, 16);
+  doc.font('Helvetica').fontSize(8).fillColor(gold).text('TUNISIA', 52, 44, { characterSpacing: 3.2 });
+  doc.fillColor('#FFFFFF').fontSize(12).text(`${t(lang, 'voucher')} · ${t(lang, 'ref')} : ${booking.ref}`, 50, 66);
+  doc.font('Helvetica');
+  doc.fillColor('#14213D').moveDown(3);
+
+  doc.y = 120;
+  doc.fontSize(12).text(`${booking.customer.name}`, { continued: false });
+  if (booking.customer.hotel) doc.text(`${booking.customer.hotel}${booking.customer.room ? ' · ' + booking.customer.room : ''}`);
+  doc.text(booking.customer.phone || '');
+  doc.moveDown();
+
+  for (const it of booking.items) {
+    if (it.status === 'cancelled') continue;
+    doc.fontSize(15).fillColor(green).text(it.title || '', { underline: false });
+    doc.fontSize(11).fillColor('#14213D');
+    const p = it.participants || {};
+    doc.text(`${t(lang, 'date')} : ${it.date}${it.time ? ' · ' + it.time : ''}`);
+    doc.text(`${t(lang, 'people')} : ${p.adult || 0} ${t(lang, 'adults')}${p.child ? `, ${p.child} ${t(lang, 'children')}` : ''}${p.infant ? `, ${p.infant} ${t(lang, 'infants')}` : ''}`);
+    if (it.type === 'transfer' && it.transfer) {
+      doc.text(`${t(lang, 'pickup')} : ${it.transfer.from}${it.transfer.flightNumber ? ' · vol ' + it.transfer.flightNumber : ''}`);
+      doc.text(`→ ${it.transfer.to}`);
+    } else if (it.zone) doc.text(`${t(lang, 'pickup')} : ${it.zone}`);
+    const d = it.driver && drivers[String(it.driver)];
+    if (d) doc.text(`${t(lang, 'driver')} : ${d.name} · ${d.phone || ''}`);
+    doc.text(formatMoney(it.totalEur, 'EUR', lang));
+    doc.moveDown();
+  }
+
+  doc.moveDown();
+  doc.fontSize(16).fillColor(green).text(`${t(lang, 'total')} : ${formatMoney(booking.totalEur, 'EUR', lang)}`);
+  if (booking.currency !== 'EUR') doc.fontSize(11).fillColor('#4B5B54').text(`≈ ${formatMoney(booking.totalDisplay, booking.currency, lang)}`);
+  doc.fontSize(11).fillColor('#4B5B54').text(t(lang, 'payOnSite'));
+  doc.moveDown(2);
+  doc.fontSize(10).text([contact.phone, contact.whatsapp && 'WhatsApp ' + contact.whatsapp, contact.email].filter(Boolean).join(' · '));
+  doc.end();
+  return done;
+}

@@ -1,0 +1,17 @@
+{
+  "name": "tunisia-tours",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Plateforme de réservation d'excursions privées et de transferts en Tunisie (React + Node.js + MongoDB)",
+  "workspaces": ["shared", "server", "client"],
+  "scripts": {
+    "dev": "concurrently -n api,web -c green,cyan \"npm run dev -w server\" \"npm run dev -w client\"",
+    "seed": "npm run seed -w server",
+    "test": "npm test -w shared",
+    "build": "npm run build -w client",
+    "start": "npm start -w server"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  }
+}

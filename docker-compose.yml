@@ -1,0 +1,18 @@
+# Démarrage complet : docker compose up -d   puis   docker compose exec app npm run seed
+services:
+  mongo:
+    image: mongo:7
+    restart: unless-stopped
+    volumes: [mongo-data:/data/db]
+  app:
+    build: .
+    restart: unless-stopped
+    env_file: server/.env
+    environment:
+      MONGODB_URI: mongodb://mongo:27017/tunisia-tours
+    ports: ["4000:4000"]
+    volumes: [uploads:/app/server/uploads]
+    depends_on: [mongo]
+volumes:
+  mongo-data:
+  uploads:
