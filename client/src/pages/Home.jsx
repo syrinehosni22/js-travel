@@ -6,6 +6,7 @@ import { useApp, useFetch } from '../context.jsx';
 import { path, LANGS, placeName } from '../i18n.js';
 import { Media, Seo, TourCard } from '../components/ui.jsx';
 import TransferForm from '../components/TransferForm.jsx';
+import { waLink } from '../whatsapp.js';
 
 const SLIDES = ['sidiBouSaidStreet', 'ksarGhilane', 'djerbaBeach'];
 const DESTINATIONS = [
@@ -26,7 +27,7 @@ function Hero() {
     const id = setInterval(() => { if (!paused.current) setI((x) => (x + 1) % SLIDES.length); }, 6000);
     return () => clearInterval(id);
   }, []);
-  const wa = settings?.contact?.whatsapp ? `https://wa.me/${settings.contact.whatsapp.replace(/\D/g, '')}` : '#';
+  const wa = waLink(settings?.contact?.whatsapp, t('hero.waText'));
   return (
     <section className="hero" aria-roledescription="carousel" onMouseEnter={() => (paused.current = true)} onMouseLeave={() => (paused.current = false)} onFocus={() => (paused.current = true)}>
       {SLIDES.map((key, k) => <Media key={key} photo={key} alt="" sizes="100vw" className={`hero__slide${k === i ? ' is-active' : ''}`} eager={k === 0} />)}
@@ -36,7 +37,7 @@ function Hero() {
         <p>{t('hero.text')}</p>
         <div className="hero__ctas">
           <Link to={path(lang, 'excursions')} className="btn btn--primary btn--lg">{t('hero.see')}</Link>
-          <a href={wa} className="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer">{t('hero.whatsapp')}</a>
+          {wa && <a href={wa} className="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer">{t('hero.whatsapp')}</a>}
         </div>
         <div className="hero__dots" role="tablist">
           {SLIDES.map((_, k) => <button key={k} className={`hero__dot${k === i ? ' is-active' : ''}`} role="tab" aria-selected={k === i} aria-label={t('hero.slide', { n: k + 1 })} onClick={() => setI(k)} />)}
@@ -113,7 +114,7 @@ export default function Home() {
           <div className="dest-grid">
             {DESTINATIONS.map((d) => (
               <Link key={d.name} className="dest" to={`${path(lang, 'excursions')}?${d.category ? `category=${d.category}` : `q=${encodeURIComponent(d.q)}`}`}>
-                <Media photo={d.photo} sizes="(max-width: 640px) 50vw, 20vw" />
+                <Media photo={d.photo} sizes="(max-width: 640px) 78vw, (max-width: 1100px) 50vw, 20vw" />
                 <div className="dest__label"><strong>{placeName(d.name, lang)}</strong></div>
               </Link>
             ))}
@@ -144,7 +145,7 @@ export default function Home() {
             <Media className="why__tall" photo="sousseMedina" sizes="(max-width: 900px) 50vw, 25vw" />
             <div className="why__stack">
               <Media photo="camel" sizes="(max-width: 900px) 50vw, 25vw" />
-              <div className="why__stat"><strong>2–8</strong><span>{t('home.stat')}</span></div>
+              <div className="why__stat"><strong>{t('home.statValue')}</strong><span>{t('home.stat')}</span></div>
             </div>
           </div>
           <div className="why__text">
@@ -196,4 +197,3 @@ export default function Home() {
     </>
   );
 }
-

@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { LANGS, path } from '../i18n.js';
 import { Seo, ErrorBox, Media } from '../components/ui.jsx';
+import { waLink } from '../whatsapp.js';
 
 /** Contact (§2) et demande « Sur mesure » / devis (§3.1 mode « sur devis ») */
 export default function Contact({ custom }) {
@@ -43,7 +44,7 @@ export default function Contact({ custom }) {
           {c.address && <p>{c.address}</p>}
           {c.phone && <a href={`tel:${c.phone}`}>{c.phone}</a>}
           {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
-          {c.whatsapp && <a className="btn btn--whatsapp" href={`https://wa.me/${c.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+          {waLink(c.whatsapp) && <a className="btn btn--whatsapp" href={waLink(c.whatsapp)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
           {c.mapEmbed && <iframe title={t('common.map')} src={c.mapEmbed} style={{ width: '100%', height: 260, border: 0, borderRadius: 14 }} loading="lazy" />}
         </aside>
       </div>

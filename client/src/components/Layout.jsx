@@ -5,6 +5,7 @@ import { useApp } from '../context.jsx';
 import { LANGS, PATHS, path, langName } from '../i18n.js';
 import { Icon, Logo, BRAND } from './ui.jsx';
 import { PHOTOS } from '../images.js';
+import { waLink } from '../whatsapp.js';
 
 function Header() {
   const { t } = useTranslation();
@@ -74,14 +75,14 @@ function Footer() {
   const { lang, settings } = useApp();
   const c = settings?.contact || {};
   const s = settings?.social || {};
-  const wa = c.whatsapp ? `https://wa.me/${c.whatsapp.replace(/\D/g, '')}` : '#';
+  const wa = waLink(c.whatsapp, t('hero.waText'));
   return (
     <footer className="footer">
       <div className="container">
         <div className="footer__cta">
           <strong>{t('footer.question')}</strong>
           <div>
-            <a href={wa} className="btn btn--whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp</a>
+            {wa && <a href={wa} className="btn btn--whatsapp" target="_blank" rel="noopener noreferrer">WhatsApp</a>}
             <Link to={path(lang, 'contact')} className="btn btn--ghost">{t('footer.write')}</Link>
           </div>
         </div>
@@ -147,14 +148,14 @@ export default function Layout({ children }) {
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
-  const wa = settings?.contact?.whatsapp ? `https://wa.me/${settings.contact.whatsapp.replace(/\D/g, '')}` : '#';
+  const wa = waLink(settings?.contact?.whatsapp, t('hero.waText'));
   return (
     <>
       <a className="visually-hidden" href="#main">{t('common.skip')}</a>
       <Header />
       <main id="main">{children}</main>
       <Footer />
-      <a href={wa} className="fab fab--whatsapp" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer"><Icon name="chat" color="#0B3D1F" size={26} /></a>
+      {wa && <a href={wa} className="fab fab--whatsapp" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer"><Icon name="chat" color="#0B3D1F" size={26} /></a>}
       <button className={`fab fab--top${showTop ? ' is-visible' : ''}`} aria-label={t('footer.top')} onClick={() => window.scrollTo({ top: 0 })}><Icon name="up" /></button>
       <CookieBanner />
     </>
