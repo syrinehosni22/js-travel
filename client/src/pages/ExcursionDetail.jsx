@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { api, assetUrl } from '../api.js';
+import { api } from '../api.js';
 import { useApp, useFetch } from '../context.jsx';
 import { LANGS, path, langName, placeName } from '../i18n.js';
 import { Seo, Media, TourCard, Loading, ErrorBox, Icon } from '../components/ui.jsx';
 import PriceCalculator from '../components/PriceCalculator.jsx';
 import NotFound from './NotFound.jsx';
+import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
 
@@ -48,7 +49,7 @@ function Gallery({ images, title }) {
         <div className="lightbox" role="dialog" aria-modal="true" aria-label={title}>
           <button type="button" className="lightbox__close" onClick={() => setOpen(null)} aria-label={t('detail.close')}><Icon name="x" /></button>
           <div className="lightbox__list">
-            {images.map((img, i) => <img key={i} src={assetUrl(img.url)} alt={img.alt || title} loading={Math.abs(i - open) < 2 ? 'eager' : 'lazy'} ref={(el) => { if (el && i === open) el.scrollIntoView({ block: 'center' }); }} />)}
+            {images.map((img, i) => <img key={i} src={img.url} alt={img.alt || title} loading={Math.abs(i - open) < 2 ? 'eager' : 'lazy'} ref={(el) => { if (el && i === open) el.scrollIntoView({ block: 'center' }); }} />)}
           </div>
         </div>
       )}
@@ -215,7 +216,7 @@ export default function ExcursionDetail() {
             <section className="gyg-sec gyg-contact">
               <strong>{t('detail.contact')}</strong>
               <div className="row">
-                {c.whatsapp && <a className="btn btn--whatsapp" href={`https://wa.me/${c.whatsapp.replace(/\D/g, '')}?text=${encodeURIComponent(e.title)}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
+                {waLink(c.whatsapp, e.title) && <a className="btn btn--whatsapp" href={waLink(c.whatsapp, e.title)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
                 {c.viber && <a className="btn btn--outline" href={`viber://chat?number=${encodeURIComponent(c.viber)}`}>Viber</a>}
                 {c.email && <a className="btn btn--outline" href={`mailto:${c.email}?subject=${encodeURIComponent(e.title)}`}>{t('detail.email')}</a>}
               </div>

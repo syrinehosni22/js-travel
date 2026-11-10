@@ -1,238 +1,186 @@
-import { useEffect, useRef, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { computeExcursionPrice } from '@tt/shared';
 import { api } from '../api.js';
-import { useApp, useFetch } from '../context.jsx';
-import { LANGS, path, langName, placeName } from '../i18n.js';
-import { Seo, Media, TourCard, Loading, ErrorBox, Icon } from '../components/ui.jsx';
-import PriceCalculator from '../components/PriceCalculator.jsx';
-import NotFound from './NotFound.jsx';
-import { waLink } from '../whatsapp.js';
+import { useApp } from '../context.jsx';
+import { path, langName } from '../i18n.js';
+import { Counter, PriceLines, Icon } from './ui.jsx';
 
-const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
-
-/** Galerie : 1 grande + 4 petites sur ordinateur, carrousel à faire glisser sur mobile, visionneuse plein écran */
-function Gallery({ images, title }) {
+/** Calendrier mensuel de disponibilité (§5.4) */
+function DatePicker({ excursionId, value, onChange }) {
   const { t } = useTranslation();
-  const [open, setOpen] = useState(null);
-  const [idx, setIdx] = useState(0);
-  const strip = useRef(null);
-  const list = images?.length ? images : [{}, {}, {}];
-  useEffect(() => {
-    if (open == null) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') setOpen(null); };
-    document.addEventListener('keydown', onKey);
-    document.body.style.overflow = 'hidden';
-    return () => { document.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
-  }, [open]);
-  const onScroll = () => { const el = strip.current; if (el) setIdx(Math.round(el.scrollLeft / el.clientWidth)); };
-  return (
-    <>
-      <div className={`gyg-gallery gyg-gallery--${Math.min(list.length, 5)}`}>
-        {list.slice(0, 5).map((img, i) => (
-          <button type="button" key={i} className="gyg-gallery__item" onClick={() => images?.length && setOpen(i)} aria-label={t('detail.photos', { n: list.length })}>
-            <Media src={img.url} alt={img.alt || title} ph={PH[i]} eager={i === 0} sizes={i === 0 ? '(max-width: 760px) 100vw, 60vw' : '20vw'} />
-          </button>
-        ))}
-        {images?.length > 1 && <button type="button" className="gyg-gallery__all" onClick={() => setOpen(0)}><Icon name="grid" size={16} /> {t('detail.photos', { n: images.length })}</button>}
-      </div>
-      {/* Mobile : carrousel */}
-      <div className="gyg-strip" ref={strip} onScroll={onScroll}>
-        {list.map((img, i) => (
-          <button type="button" key={i} className="gyg-strip__item" onClick={() => images?.length && setOpen(i)}>
-            <Media src={img.url} alt={img.alt || title} ph={PH[i % PH.length]} eager={i === 0} sizes="100vw" />
-          </button>
-        ))}
-        {list.length > 1 && <span className="gyg-strip__count" aria-hidden="true">{idx + 1} / {list.length}</span>}
-      </div>
-      {open != null && (
-        <div className="lightbox" role="dialog" aria-modal="true" aria-label={title}>
-          <button type="button" className="lightbox__close" onClick={() => setOpen(null)} aria-label={t('detail.close')}><Icon name="x" /></button>
-          <div className="lightbox__list">
-            {images.map((img, i) => <img key={i} src={img.url} alt={img.alt || title} loading={Math.abs(i - open) < 2 ? 'eager' : 'lazy'} ref={(el) => { if (el && i === open) el.scrollIntoView({ block: 'center' }); }} />)}
-          </div>
-        </div>
-      )}
-    </>
-  );
-}
-
-/** « Afficher plus » pour les longues descriptions */
-function Collapsible({ text }) {
-  const { t } = useTranslation();
-  const [open, setOpen] = useState(false);
-  const paras = text.split(/\n\s*\n/);
-  const long = text.length > 420;
+  const { lang } = useApp();
+  const [month, setMonth] = useState(() => (value || new Date().toISOString()).slice(0, 7));
+  const [days, setDays] = useState({});
+  useEffect(() => { api.get(`/excursions/${excursionId}/availability?month=${month}`).then(setDays).catch(() => setDays({})); }, [excursionId, month]);
+  const [y, m] = month.split('-').map(Number);
+  const first = (new Date(y, m - 1, 1).getDay() + 6) % 7; // lundi = 0
+  const count = new Date(y, m, 0).getDate();
+  const shift = (d) => { const x = new Date(y, m - 1 + d, 1); setMonth(`${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`); };
+  const fmt = new Intl.DateTimeFormat(lang, { month: 'long', year: 'numeric' });
+  const wd = [...Array(7)].map((_, i) => new Intl.DateTimeFormat(lang, { weekday: 'narrow' }).format(new Date(2024, 0, 1 + i)));
   return (
     <div>
-      <div className={`prose gyg-desc${long && !open ? ' is-clamped' : ''}`}>{paras.map((p, i) => <p key={i}>{p}</p>)}</div>
-      {long && <button type="button" className="link-btn" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? t('detail.showLess') : t('detail.showMore')}</button>}
+      <div className="cal__nav">
+        <button type="button" onClick={() => shift(-1)} aria-label={t('common.prevMonth')}><Icon name="left" /></button>
+        <strong>{(() => { const x = fmt.format(new Date(y, m - 1, 1)); return x.charAt(0).toLocaleUpperCase(lang) + x.slice(1); })()}</strong>
+        <button type="button" onClick={() => shift(1)} aria-label={t('common.nextMonth')}><Icon name="right" /></button>
+      </div>
+      <div className="cal" role="grid" aria-label={t('calc.chooseDate')}>
+        {wd.map((d, i) => <div key={i} className="cal__head" aria-hidden="true">{d}</div>)}
+        {[...Array(first)].map((_, i) => <div key={`e${i}`} />)}
+        {[...Array(count)].map((_, i) => {
+          const date = `${month}-${String(i + 1).padStart(2, '0')}`;
+          const s = days[date] || 'past';
+          return <button type="button" key={date} data-s={s} aria-pressed={value === date} disabled={s !== 'open'} onClick={() => onChange(date)} aria-label={new Intl.DateTimeFormat(lang, { dateStyle: 'full' }).format(new Date(y, m - 1, i + 1))}>{i + 1}</button>;
+        })}
+      </div>
     </div>
   );
 }
 
-function AboutItem({ icon, title, children }) {
-  return (
-    <li><span className="about__icon"><Icon name={icon} size={22} /></span><div><strong>{title}</strong>{children && <p>{children}</p>}</div></li>
-  );
-}
-
-export default function ExcursionDetail() {
+/**
+ * Encart calculateur de la fiche (§3.5) : prix total et prix par personne mis à jour
+ * instantanément avec le moteur partagé ; le serveur recalcule à l'enregistrement.
+ */
+export default function PriceCalculator({ excursion }) {
   const { t } = useTranslation();
-  const { slug } = useParams();
-  const { lang, settings, money } = useApp();
+  const { lang, settings, money, addToCart, promoCode } = useApp();
   const nav = useNavigate();
-  const { data: e, loading, error } = useFetch(() => api.get(`/excursions/${encodeURIComponent(slug)}`, { lang }), [slug, lang]);
+  const pr = excursion.pricing || {};
+  const maxGroup = pr.maxGroup || 8;
+  const [date, setDate] = useState('');
+  const [p, setP] = useState({ adult: 2, child: 0, infant: 0 });
+  const [zone, setZone] = useState(pr.zones?.[0]?.key || '');
+  const [guideLang, setGuideLang] = useState(excursion.guideLanguages?.includes(lang) ? lang : excursion.guideLanguages?.[0]);
+  const [options, setOptions] = useState([]);
+  const [promo, setPromo] = useState(null);
+  const [avail, setAvail] = useState(null);
+  const [wl, setWl] = useState({ open: false, email: '', sent: false });
 
-  // Ancien slug ou slug d'une autre langue : redirection vers l'URL de la langue courante
-  useEffect(() => { if (e?.redirect) nav(path(lang, 'excursions', e.redirect), { replace: true }); }, [e, lang, nav]);
+  // Remise du code promo saisi dans le panier
+  useEffect(() => {
+    if (!promoCode) return setPromo(null);
+    api.post('/promo/check', { code: promoCode, excursion: excursion.id }).then((r) => setPromo(r.valid ? r.rate : null)).catch(() => setPromo(null));
+  }, [promoCode, excursion.id]);
 
-  if (loading) return <Loading />;
-  if (error?.status === 404) return <NotFound />;
-  if (error) return <div className="container"><ErrorBox error={error} /></div>;
-  if (!e || e.redirect) return null;
+  useEffect(() => {
+    if (!date) return setAvail(null);
+    api.post(`/excursions/${excursion.id}/quote`, { date, participants: p }).then((r) => setAvail(r.availability)).catch(() => setAvail(null));
+  }, [date]); // eslint-disable-line
 
-  const seo = e.seo || {};
-  const c = settings?.contact || {};
-  const maxGroup = e.pricing?.maxGroup || 8;
-  const cancelH = e.cancellationFreeHours || 24;
-  const cities = (e.departureCities || []).map((x) => placeName(x, lang));
-  const languages = (e.guideLanguages || []).map((l) => langName(l, lang));
-  const alternates = Object.fromEntries(LANGS.filter((l) => e.slugs?.[l]).map((l) => [l, path(l, 'excursions', e.slugs[l])]));
-  const jsonLd = [
-    {
-      '@context': 'https://schema.org', '@type': ['TouristTrip', 'Product'], name: e.title, description: e.summary,
-      image: e.images?.map((i) => i.url), touristType: 'Private group',
-      offers: e.from?.amount ? { '@type': 'Offer', price: e.from.amount, priceCurrency: 'EUR', availability: 'https://schema.org/InStock' } : undefined,
-      ...(e.rating?.value && { aggregateRating: { '@type': 'AggregateRating', ratingValue: e.rating.value, reviewCount: e.rating.count } }),
-    },
-    e.faq?.length && { '@context': 'https://schema.org', '@type': 'FAQPage', mainEntity: e.faq.map((f) => ({ '@type': 'Question', name: f.q, acceptedAnswer: { '@type': 'Answer', text: f.a } })) },
-    { '@context': 'https://schema.org', '@type': 'BreadcrumbList', itemListElement: [
-      { '@type': 'ListItem', position: 1, name: t('nav.home'), item: `${location.origin}/${lang}` },
-      { '@type': 'ListItem', position: 2, name: t('nav.excursions'), item: location.origin + path(lang, 'excursions') },
-      { '@type': 'ListItem', position: 3, name: e.title },
-    ] },
-  ].filter(Boolean);
-  const hasImportant = e.toBring?.length > 0 || e.minAge > 0 || e.notIncluded?.length > 0;
+  const booking = { date: date || undefined, participants: p, zone, guideLang, options };
+  const price = useMemo(() => computeExcursionPrice(excursion, booking, {
+    calendar: settings?.calendar, discount: promo ? { rate: promo, source: 'promo' } : undefined, lang,
+  }), [excursion, JSON.stringify(booking), settings, promo, lang]); // eslint-disable-line
 
+  const total = p.adult + p.child + p.infant;
+  const toggle = (k) => setOptions((o) => (o.includes(k) ? o.filter((x) => x !== k) : [...o, k]));
+  const item = { type: 'excursion', excursion: excursion.id, title: excursion.title, slug: excursion.slug, image: excursion.image?.url, date, participants: p, zone, guideLang, options, estimateEur: price.totalEur };
+  const canBook = date && avail?.available && !price.quote && !price.error;
+  const unit = (o) => t(o.per === 'person' ? 'calc.perPersonOpt' : o.per === 'vehicle' ? 'calc.perVehicleOpt' : 'calc.perBookingOpt');
+
+  const ages = { c: pr.childAges || [4, 11], i: pr.infantAges || [0, 3] };
+  const from = excursion.from;
+  const fromUnit = from?.per === 'vehicle' ? t('price.perVehicle') : from?.per === 'group' ? t('price.perGroup') : t('price.perPerson');
   return (
     <>
-      <Seo title={seo.metaTitle || e.title} description={seo.metaDescription || e.summary} canonical={seo.canonical || path(lang, 'excursions', e.slug)}
-        alternates={alternates} image={seo.ogImage || e.images?.[0]?.url} noindex={seo.index === false} jsonLd={jsonLd} />
-      <div className="container gyg">
-        <nav aria-label={t('common.breadcrumb')} className="gyg-crumbs">
-          <a href={`/${lang}`}>{t('nav.home')}</a><span aria-hidden="true">›</span><a href={path(lang, 'excursions')}>{t('nav.excursions')}</a>{e.category && <><span aria-hidden="true">›</span><a href={`${path(lang, 'excursions')}?category=${e.category}`}>{t(`cat.${e.category}`)}</a></>}
-        </nav>
-
-        <header className="gyg-head">
-          <div className="row" style={{ gap: 8 }}>{e.badges?.map((b) => <span key={b} className={`tag tag--${b}`}>{t(`badge.${b}`)}</span>)}</div>
-          <h1>{seo.h1 || e.title}</h1>
-          <div className="gyg-head__meta">
-            {e.rating?.value && <span className="stars"><Icon name="star" size={16} /> <b>{e.rating.value}</b> ({t('detail.reviewsN', { n: e.rating.count })})</span>}
-            {e.durationLabel && <span><Icon name="clock" size={16} /> {e.durationLabel}</span>}
-            {cities.length > 0 && <span><Icon name="pin" size={16} /> {cities.join(', ')}</span>}
-          </div>
-        </header>
-
-        <Gallery images={e.images} title={e.title} />
-
-        <div className="gyg-body">
-          <div className="gyg-top">
-            {e.summary && <p className="gyg-summary">{e.summary}</p>}
-            <section className="gyg-sec">
-              <h2>{t('detail.about')}</h2>
-              <ul className="about">
-                <AboutItem icon="check" title={t('detail.freeCancelTitle')}>{t('detail.freeCancelText', { h: cancelH })}</AboutItem>
-                <AboutItem icon="wallet" title={t('detail.payLaterTitle')}>{t('detail.payLaterText')}</AboutItem>
-                {e.durationLabel && <AboutItem icon="clock" title={`${t('detail.duration')} : ${e.durationLabel}`}>{e.startTimes?.length ? t('detail.startAt', { times: e.startTimes.join(', ') }) : null}</AboutItem>}
-                {languages.length > 0 && <AboutItem icon="guide" title={t('detail.guideTitle')}>{languages.join(', ')}</AboutItem>}
-                {cities.length > 0 && <AboutItem icon="pin" title={t('detail.pickupTitle')}>{t('detail.pickupText', { cities: cities.join(', ') })}</AboutItem>}
-                <AboutItem icon="users" title={t('detail.privateTitle')}>{t('detail.privateText', { n: maxGroup })}</AboutItem>
-                <AboutItem icon="bolt" title={e.availability?.mode === 'instant' ? t('calc.instant') : t('detail.confirmTitle')}>{e.availability?.mode === 'instant' ? null : t('calc.onRequest', { h: e.availability?.confirmWithinHours || 12 })}</AboutItem>
-              </ul>
-            </section>
-          </div>
-
-          <aside className="gyg-aside" id="calculator">
-            <PriceCalculator excursion={e} />
-          </aside>
-
-          <div className="gyg-rest">
-            {(e.highlights?.length > 0 || e.description) && (
-              <section className="gyg-sec">
-                <h2>{t('detail.experience')}</h2>
-                {e.highlights?.length > 0 && <div className="gyg-row"><h3>{t('detail.highlights')}</h3><ul className="dots">{e.highlights.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
-                {e.description && <div className="gyg-row"><h3>{t('detail.fullDescription')}</h3><Collapsible text={e.description} /></div>}
-              </section>
-            )}
-
-            {(e.included?.length > 0 || e.notIncluded?.length > 0) && (
-              <section className="gyg-sec">
-                <h2>{t('detail.includes')}</h2>
-                <ul className="incl">
-                  {e.included?.map((x, i) => <li key={`i${i}`} className="yes"><Icon name="check" size={18} />{x}</li>)}
-                  {e.notIncluded?.map((x, i) => <li key={`n${i}`} className="no"><Icon name="x" size={18} />{x}</li>)}
-                </ul>
-              </section>
-            )}
-
-            {e.program?.length > 0 && (
-              <section className="gyg-sec">
-                <h2>{t('detail.program')}</h2>
-                <ol className="timeline">{e.program.map((s, i) => <li key={i}>{s.time && <time>{s.time}</time>}<span>{s.text}</span></li>)}</ol>
-              </section>
-            )}
-
-            {cities.length > 0 && (
-              <section className="gyg-sec">
-                <h2>{t('detail.meetingPoint')}</h2>
-                <p>{t('detail.pickupText', { cities: cities.join(', ') })}</p>
-                {e.pricing?.zones?.some((z) => z.fee) && <p className="muted">{e.pricing.zones.filter((z) => z.fee).map((z) => `${placeName(z.label || z.key, lang)} +${money(z.fee)}`).join(' · ')}</p>}
-                {e.mapEmbed && <iframe title={t('common.map')} src={e.mapEmbed} className="gyg-map" loading="lazy" />}
-              </section>
-            )}
-
-            {hasImportant && (
-              <section className="gyg-sec">
-                <h2>{t('detail.importantInfo')}</h2>
-                {e.toBring?.length > 0 && <div className="gyg-row"><h3>{t('detail.bring')}</h3><ul className="dots">{e.toBring.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
-                <div className="gyg-row"><h3>{t('detail.knowBefore')}</h3>
-                  <ul className="dots">
-                    {e.minAge > 0 && <li>{t('detail.minAgeText', { n: e.minAge })}</li>}
-                    <li>{t('detail.privateText', { n: maxGroup })}</li>
-                    <li>{t('detail.freeCancelText', { h: cancelH })}</li>
-                  </ul>
-                </div>
-              </section>
-            )}
-
-            {e.faq?.length > 0 && (
-              <section className="gyg-sec">
-                <h2>{t('detail.faq')}</h2>
-                <div className="faq" style={{ margin: 0 }}>{e.faq.map((f, i) => <details key={i}><summary>{f.q}</summary><p>{f.a}</p></details>)}</div>
-              </section>
-            )}
-
-            <section className="gyg-sec gyg-contact">
-              <strong>{t('detail.contact')}</strong>
-              <div className="row">
-                {waLink(c.whatsapp, e.title) && <a className="btn btn--whatsapp" href={waLink(c.whatsapp, e.title)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
-                {c.viber && <a className="btn btn--outline" href={`viber://chat?number=${encodeURIComponent(c.viber)}`}>Viber</a>}
-                {c.email && <a className="btn btn--outline" href={`mailto:${c.email}?subject=${encodeURIComponent(e.title)}`}>{t('detail.email')}</a>}
-              </div>
-            </section>
-          </div>
+      <section className="card calc" aria-label={t('calc.title')}>
+        <div className="calc__from">
+          {from?.amount != null && !from.quote
+            ? <><small>{t('detail.from')}</small><div><strong>{money(from.amount)}</strong> <span>{fromUnit}</span></div>{from.from > 1 && <small>{t('price.from', { n: from.from })}</small>}</>
+            : <strong>{t('price.quote')}</strong>}
         </div>
-      </div>
 
-      {e.related?.length > 0 && (
-        <section className="section section--alt">
-          <div className="container">
-            <h2 className="section__title" style={{ marginBottom: 24 }}>{t('detail.like')}</h2>
-            <div className="tour-grid">{e.related.map((r) => <TourCard key={r.id} e={r} />)}</div>
+        <div className="calc__people">
+          <span className="calc__label"><Icon name="users" size={16} /> {t('search.people')}</span>
+          <Counter label={t('calc.adults')} hint={t('calc.adultsHint')} value={p.adult} min={1} max={maxGroup} onChange={(v) => setP({ ...p, adult: v })} />
+          <Counter label={t('calc.children')} hint={t('calc.childrenHint', { from: ages.c[0], to: ages.c[1], pct: Math.round((pr.childDiscount ?? 0.5) * 100) })} value={p.child} max={maxGroup} onChange={(v) => setP({ ...p, child: v })} />
+          <Counter label={t('calc.infants')} hint={t('calc.infantsHint', { from: ages.i[0], to: ages.i[1] })} value={p.infant} max={maxGroup} onChange={(v) => setP({ ...p, infant: v })} />
+        </div>
+
+        <div className="field calc__field" style={{ flex: 'none' }}><span className="calc__label"><Icon name="calendar" size={16} /> {t('calc.date')}</span>
+          <DatePicker excursionId={excursion.id} value={date} onChange={setDate} />
+        </div>
+
+        {price.overCapacity && <div className="alert alert--info">{t('calc.overCapacity', { n: maxGroup })} — <Link to={path(lang, 'custom')}>{t('calc.quote')}</Link></div>}
+        {!price.quote && price.belowThreshold && <div className="alert alert--warn">{t('price.missing', { count: price.missing, price: money(price.unitReducedPrice) })}</div>}
+        {!price.quote && !price.belowThreshold && pr.mode === 'minimum' && total > 0 && <div className="alert alert--ok">{t('price.reached', { price: money(price.unitReducedPrice) })}</div>}
+
+        {pr.zones?.length > 0 && (
+          <label className="field" style={{ flex: 'none' }}>{t('calc.pickup')}
+            <select value={zone} onChange={(e) => setZone(e.target.value)}>
+              {pr.zones.map((z) => <option key={z.key} value={z.key}>{z.label || z.key}{z.fee ? ` (+${money(z.fee)})` : ''}</option>)}
+            </select>
+          </label>
+        )}
+        {excursion.guideLanguages?.length > 1 && (
+          <label className="field" style={{ flex: 'none' }}>{t('calc.guideLang')}
+            <select value={guideLang} onChange={(e) => setGuideLang(e.target.value)}>
+              {excursion.guideLanguages.map((l) => { const fee = pr.guideLanguages?.find((g) => g.lang === l)?.fee; return <option key={l} value={l}>{langName(l, lang)}{fee ? ` (+${money(fee)})` : ''}</option>; })}
+            </select>
+          </label>
+        )}
+        {pr.options?.length > 0 && (
+          <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
+            <legend className="field" style={{ padding: 0, marginBottom: 8 }}>{t('calc.options')}</legend>
+            <div className="chips">
+              {pr.options.map((o) => <button type="button" key={o.key} className="chip" aria-pressed={options.includes(o.key)} onClick={() => toggle(o.key)}>{options.includes(o.key) ? '✓ ' : '+ '}{o.label} · {money(o.price)} {unit(o)}</button>)}
+            </div>
+          </fieldset>
+        )}
+
+        {!price.quote && (
+          <div className="calc__total">
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <span>{t('price.total')} <small className="muted">({total} pers.)</small></span>
+              <strong>{money(price.totalEur, 2)}</strong>
+            </div>
+            {price.payers > 0 && <small className="muted">{money(price.perPerson, 2)} {t('price.perPerson')} · {t('price.taxes')}</small>}
+            <details>
+              <summary>{t('price.details')}</summary>
+              <PriceLines lines={price.lines} />
+            </details>
           </div>
-        </section>
-      )}
+        )}
+
+        {date && avail && !avail.available && (
+          <div className="alert alert--warn">
+            {t(avail.reason === 'FULL' ? 'calc.full' : avail.reason === 'TOO_LATE' ? 'calc.tooLate' : 'calc.closed')}
+            {avail.waitlist && !wl.sent && <> <button className="link-btn" onClick={() => setWl({ ...wl, open: true })}>{t('calc.waitlist')}</button></>}
+            {wl.open && !wl.sent && (
+              <form className="row" style={{ marginTop: 8 }} onSubmit={(e) => { e.preventDefault(); api.post('/waitlist', { excursion: excursion.id, date, email: wl.email, participants: total, lang }).then(() => setWl({ ...wl, sent: true })); }}>
+                <input type="email" required placeholder={t('common.yourEmail')} aria-label={t('common.yourEmail')} value={wl.email} onChange={(e) => setWl({ ...wl, email: e.target.value })} style={{ height: 44, flex: 1, border: '1px solid var(--field)', borderRadius: 10, padding: '0 10px' }} />
+                <button className="btn btn--green">{t('common.ok')}</button>
+              </form>
+            )}
+            {wl.sent && ' ✓'}
+          </div>
+        )}
+        {date && avail?.available && <div className="muted" style={{ fontSize: 14 }}>{avail.mode === 'instant' ? t('calc.instant') : t('calc.onRequest', { h: excursion.availability?.confirmWithinHours || 12 })}</div>}
+
+        {price.quote
+          ? <Link to={path(lang, 'custom')} className="btn btn--green btn--lg">{t('calc.quote')}</Link>
+          : (
+            <div className="stack" style={{ gap: 10 }}>
+              <button className="btn btn--primary btn--lg" disabled={!canBook} onClick={() => { addToCart(item); nav(path(lang, 'checkout')); }}>{date ? t('calc.book') : t('calc.chooseDate')}</button>
+              <button className="btn btn--outline" disabled={!canBook} onClick={() => { addToCart(item); nav(path(lang, 'cart')); }}>{t('calc.add')}</button>
+            </div>
+          )}
+        <ul className="calc__trust">
+          <li><Icon name="check" size={16} /> {t('detail.freeCancelText', { h: excursion.cancellationFreeHours || 24 })}</li>
+          <li><Icon name="wallet" size={16} /> {t('detail.payLaterText')}</li>
+        </ul>
+      </section>
+
+      {/* Barre fixe en bas d'écran sur mobile */}
+      <div className="mobile-bar">
+        {date && !price.quote
+          ? <div><small>{t('price.total')}</small><strong>{money(price.totalEur, 2)}</strong></div>
+          : <div><small>{t('detail.from')}</small><strong>{from?.amount != null && !from.quote ? money(from.amount) : t('price.quote')}</strong>{from?.amount != null && !from.quote && <small> {fromUnit}</small>}</div>}
+        <a href="#calculator" className="btn btn--primary">{t('detail.checkAvailability')}</a>
+      </div>
     </>
   );
 }
