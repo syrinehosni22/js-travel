@@ -6,6 +6,7 @@ import { useApp, useFetch } from '../context.jsx';
 import { path, LANGS, placeName } from '../i18n.js';
 import { Media, Seo, TourCard } from '../components/ui.jsx';
 import TransferForm from '../components/TransferForm.jsx';
+import About from '../components/About.jsx';
 import { waLink } from '../whatsapp.js';
 
 const SLIDES = ['sidiBouSaidStreet', 'ksarGhilane', 'djerbaBeach'];
@@ -129,7 +130,9 @@ export default function Home() {
         </div></div>
       </section>
 
-      <section className="section section--alt" style={{ marginTop: 64 }}>
+      <About />
+
+      <section className="section section--alt">
         <div className="container">
           <div className="section__head">
             <div><span className="eyebrow">{t('home.popular')}</span><h2 className="section__title">{t('home.popularTitle')}</h2></div>

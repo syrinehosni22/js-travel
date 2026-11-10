@@ -21,10 +21,53 @@ export function Top({ title, children }) {
   return <div className="admin-top"><h1>{title}</h1><div className="row">{children}</div></div>;
 }
 
+/** Messages d'erreur du back-office, rédigés pour l'équipe (aucun code ni détail technique) */
+const ADMIN_ERRORS = {
+  NETWORK: 'Impossible de joindre le serveur. Vérifiez votre connexion internet puis réessayez.',
+  VALIDATION: 'Certaines informations sont manquantes ou invalides. Vérifiez le formulaire.',
+  BAD_REQUEST: 'La demande n’a pas pu être traitée. Rechargez la page puis réessayez.',
+  DUPLICATE: 'Cet élément existe déjà.',
+  BAD_ID: 'Cet élément est introuvable (il a peut-être été supprimé).',
+  NOT_FOUND: 'Cet élément est introuvable (il a peut-être été supprimé).',
+  FORBIDDEN: 'Vous n’avez pas les droits nécessaires pour cette action.',
+  TOO_LARGE: 'Fichier trop lourd (8 Mo maximum).',
+  BAD_FILE: 'Ce fichier n’est pas accepté. Formats possibles : JPG, PNG, WebP, AVIF ou MP4.',
+  TOO_MANY: 'Trop de tentatives. Patientez quelques minutes puis réessayez.',
+  TRANSLATION_FAILED: 'La traduction automatique est indisponible pour le moment. Réessayez plus tard.',
+  TRANSFERS_NOT_CONFIGURED: 'Les tarifs de transfert ne sont pas encore configurés.',
+  SEO_INCOMPLETE: 'Des champs SEO obligatoires sont vides.',
+  SERVER_ERROR: 'Une erreur est survenue sur le serveur. Réessayez dans un instant ; si cela continue, contactez votre prestataire technique.',
+};
+
+/** Transforme n'importe quelle erreur en phrase compréhensible */
+export function friendlyError(error) {
+  if (!error) return '';
+  const code = error.body?.error;
+  if (error.body?.message) return error.body.message;            // message déjà rédigé par le serveur
+  if (code && ADMIN_ERRORS[code]) return ADMIN_ERRORS[code];
+  const st = error.status;
+  if (st === 0) return ADMIN_ERRORS.NETWORK;
+  if (st === 403) return ADMIN_ERRORS.FORBIDDEN;
+  if (st === 404) return ADMIN_ERRORS.NOT_FOUND;
+  if (st === 413) return ADMIN_ERRORS.TOO_LARGE;
+  if (st === 429) return ADMIN_ERRORS.TOO_MANY;
+  if (st >= 500 || !st) return ADMIN_ERRORS.SERVER_ERROR;
+  return 'L’opération n’a pas abouti. Vérifiez les informations puis réessayez.';
+}
+
+/** Message affiché quand la traduction automatique échoue après un enregistrement */
+export const TRANSLATION_WARNING = 'la traduction automatique est indisponible pour le moment ; les autres langues seront complétées au prochain enregistrement';
+
 export function Err({ error }) {
   if (!error) return null;
-  const d = error.body?.details;
-  return <div className="alert alert--error" role="alert">{error.body?.message || error.message}{d && <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, margin: '6px 0 0' }}>{JSON.stringify(d, null, 1)}</pre>}</div>;
+  if (import.meta.env.DEV) console.error(error);
+  const fields = error.body?.error === 'VALIDATION' ? error.body?.details?.fields : null;
+  return (
+    <div className="alert alert--error" role="alert">
+      {friendlyError(error)}
+      {fields?.length > 0 && <div style={{ fontSize: 13, marginTop: 4 }}>Champs concernés : {fields.join(', ')}</div>}
+    </div>
+  );
 }
 
 /** Petit message de confirmation éphémère */

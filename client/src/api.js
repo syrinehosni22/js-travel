@@ -46,6 +46,19 @@ export const adminApi = Object.fromEntries(['get', 'post', 'put', 'patch', 'del'
   return call.catch((e) => { if (e.status === 401) { adminToken.set(null); window.location.href = '/admin/login'; } throw e; });
 }]));
 
+/** Envoi de fichiers depuis l'admin (photos, vidéos MP4). Renvoie [{ url, name, size }]. */
+export async function adminUpload(files) {
+  const fd = new FormData();
+  [...files].forEach((f) => fd.append('files', f));
+  let res;
+  try { res = await fetch(`${API_URL}/api/admin/uploads`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken.get()}` }, body: fd }); }
+  catch { throw new ApiError(0, { error: 'NETWORK' }); }
+  const data = (res.headers.get('content-type') || '').includes('json') ? await res.json() : null;
+  if (!res.ok) throw new ApiError(res.status, data);
+  if (!Array.isArray(data) || data.length < files.length) throw new ApiError(400, { error: 'BAD_FILE' });
+  return data;
+}
+
 /** Téléchargement authentifié (CSV) */
 export async function adminDownload(path, filename) {
   const res = await fetch(`${API_URL}/api/admin${path}`, { headers: { Authorization: `Bearer ${adminToken.get()}` } });

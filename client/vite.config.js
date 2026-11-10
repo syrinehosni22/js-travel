@@ -7,6 +7,9 @@ export default defineConfig(({ mode }) => {
   const api = env.VITE_DEV_API || 'http://localhost:4000';
   return {
     plugins: [react()],
+    // Version en ligne : pas de cartes de code source ni de messages de débogage dans la console
+    build: { sourcemap: false },
+    esbuild: mode === 'production' ? { drop: ['debugger'], pure: ['console.log', 'console.debug', 'console.info'] } : undefined,
     server: {
       port: 5173,
       proxy: {

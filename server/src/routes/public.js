@@ -53,6 +53,12 @@ r.get('/settings', async (req, res) => {
     cancellationHours: s.cancellationHours, fx: { EUR: 1, GBP: s.fx?.GBP, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
+    about: s.about?.enabled === false ? { enabled: false } : {
+      enabled: true,
+      title: pick(s.about?.title, l), text: pick(s.about?.text, l),
+      image: s.about?.image || '', video: s.about?.video || '',
+      stats: (s.about?.stats || []).filter((x) => x.value).map((x) => ({ value: x.value, label: pick(x.label, l) })),
+    },
   });
 });
 

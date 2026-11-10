@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { adminApi } from '../api.js';
+import { adminApi, adminUpload, assetUrl } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
-import { useLoad, Top, Err, useToast, setPath, getPath, LANGS, RemoveButton } from './shared.jsx';
+import { useLoad, Top, Err, useToast, setPath, getPath, LANGS, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 
 /** Paramètres : saisons, devises, contact, réseaux, politique d'annulation, FAQ, pages légales, 2FA */
 export default function SettingsAdmin() {
@@ -18,13 +18,22 @@ export default function SettingsAdmin() {
   if (!s) return <p>Chargement…</p>;
   const set = (p, v) => setS(setPath(s, p, v));
   const inp = (p, label, type = 'text') => <label className="lbl">{label}<input className="inp" type={type} value={getPath(s, p) ?? ''} onChange={(e) => set(p, type === 'number' ? +e.target.value : e.target.value)} /></label>;
-  async function save() { setErr(null); try { await adminApi.put('/settings', s); say('Paramètres enregistrés'); } catch (x) { setErr(x); } }
+  async function save() {
+    setErr(null);
+    try {
+      const { translation, ...saved } = await adminApi.put('/settings', s);
+      setS(saved);
+      say(translation?.error ? `Enregistré (${TRANSLATION_WARNING})` : 'Paramètres enregistrés');
+    } catch (x) { setErr(x); }
+  }
 
   return (
     <>
       <Top title="Paramètres"><button className="btn btn--green" onClick={save}>Enregistrer</button></Top>
       <Err error={err} />
       <div className="stack">
+        <AboutPanel s={s} set={set} lang={lang} setLang={setLang} />
+
         <section className="panel stack">
           <h2 style={{ fontSize: 18 }}>Saisons (MM-JJ)</h2>
           {(s.calendar?.seasons || []).map((x, i) => (
@@ -99,5 +108,61 @@ export default function SettingsAdmin() {
       </div>
       {toast}
     </>
+  );
+}
+
+/** Rubrique « Notre entreprise » de l'accueil : texte, photo, vidéo et chiffres clés */
+function AboutPanel({ s, set, lang, setLang }) {
+  const a = s.about || {};
+  const [busy, setBusy] = useState('');
+  const [err, setErr] = useState(null);
+  const stats = a.stats || [];
+  async function send(files, field) {
+    if (!files?.length) return;
+    setErr(null); setBusy(field);
+    try { const [f] = await adminUpload([files[0]]); set(`about.${field}`, f.url); } catch (x) { setErr(x); }
+    setBusy('');
+  }
+  return (
+    <section className="panel stack">
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <h2 style={{ fontSize: 18 }}>Présentation de l’entreprise (page d’accueil)</h2>
+        <div className="tabs" style={{ margin: 0, border: 0 }}>{LANGS.map((l) => <button key={l} type="button" aria-selected={lang === l} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}</div>
+      </div>
+      <p className="help" style={{ margin: 0 }}>Écrivez en français : les autres langues sont traduites automatiquement à l’enregistrement. Laissez vide pour garder le texte par défaut.</p>
+      <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={a.enabled !== false} onChange={(e) => set('about.enabled', e.target.checked)} />Afficher cette rubrique sur l’accueil</label>
+      <Err error={err} />
+      <label className="lbl">Titre ({lang.toUpperCase()})<input className="inp" placeholder="Une agence locale à votre service en Tunisie" value={a.title?.[lang] || ''} onChange={(e) => set(`about.title.${lang}`, e.target.value)} /></label>
+      <label className="lbl">Texte de présentation ({lang.toUpperCase()})<textarea className="inp" rows={5} placeholder="Qui êtes-vous, depuis quand, ce qui vous distingue… Une ligne vide = nouveau paragraphe." value={a.text?.[lang] || ''} onChange={(e) => set(`about.text.${lang}`, e.target.value)} /></label>
+      <div className="grid-2">
+        <div className="stack" style={{ gap: 8 }}>
+          <strong>Photo</strong>
+          {a.image && <img src={assetUrl(a.image)} alt="" style={{ width: '100%', maxWidth: 320, aspectRatio: '4 / 3', objectFit: 'cover', borderRadius: 12 }} />}
+          <div className="row">
+            <label className="btn btn--outline btn-sm">{busy === 'image' ? 'Envoi…' : a.image ? 'Changer la photo' : 'Choisir une photo'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" hidden onChange={(e) => send(e.target.files, 'image')} /></label>
+            {a.image && <button type="button" className="btn btn--danger-outline btn-sm" onClick={() => set('about.image', '')}>Retirer</button>}
+          </div>
+          <small className="muted">JPG, PNG ou WebP, 8 Mo max. Sans photo, une image de Tunisie est affichée.</small>
+        </div>
+        <div className="stack" style={{ gap: 8 }}>
+          <strong>Vidéo de présentation (facultatif)</strong>
+          <input className="inp" placeholder="Lien YouTube ou Vimeo" value={a.video || ''} onChange={(e) => set('about.video', e.target.value)} aria-label="Lien de la vidéo" />
+          <div className="row">
+            <label className="btn btn--outline btn-sm">{busy === 'video' ? 'Envoi…' : 'Ou envoyer un fichier MP4'}<input type="file" accept="video/mp4" hidden onChange={(e) => send(e.target.files, 'video')} /></label>
+            {a.video && <button type="button" className="btn btn--danger-outline btn-sm" onClick={() => set('about.video', '')}>Retirer la vidéo</button>}
+          </div>
+          <small className="muted">Un bouton « lecture » s’affiche sur la photo. La vidéo ne se charge que si le visiteur clique.</small>
+        </div>
+      </div>
+      <strong>Chiffres clés (4 maximum)</strong>
+      {stats.map((x, i) => (
+        <div key={i} className="row" style={{ flexWrap: 'nowrap' }}>
+          <input className="inp" style={{ width: 130 }} placeholder="Ex. 10 ans" value={x.value || ''} onChange={(e) => set(`about.stats.${i}.value`, e.target.value)} aria-label="Chiffre" />
+          <input className="inp" style={{ flex: 1 }} placeholder={`Libellé (${lang.toUpperCase()}) — ex. d’expérience`} value={x.label?.[lang] || ''} onChange={(e) => set(`about.stats.${i}.label.${lang}`, e.target.value)} aria-label="Libellé" />
+          <RemoveButton what="ce chiffre" onConfirm={() => set('about.stats', stats.filter((_, k) => k !== i))} />
+        </div>
+      ))}
+      {stats.length < 4 && <button type="button" className="link-btn" onClick={() => set('about.stats', [...stats, { value: '', label: { fr: '' } }])}>+ Chiffre clé</button>}
+    </section>
   );
 }

@@ -17,8 +17,8 @@ export default function Login({ onLogin }) {
     } catch (err) { setError(
       err.status === 401 ? 'E-mail, mot de passe ou code incorrect.'
         : err.status === 429 ? 'Trop de tentatives : patientez 15 minutes puis réessayez.'
-          : err.status === 0 || err.status >= 500 ? 'Le serveur ne répond pas. Vérifiez que « npm run dev » tourne et que MongoDB est démarré (voir le terminal).'
-            : 'Erreur, réessayez.'); }
+          : err.status === 0 || err.status >= 500 ? 'Le serveur ne répond pas pour le moment. Réessayez dans quelques minutes.'
+            : 'La connexion n’a pas abouti. Réessayez.'); }
   }
   return (
     <div style={{ minHeight: '100vh', display: 'grid', placeItems: 'center', background: 'var(--bg-alt)', padding: 16 }}>

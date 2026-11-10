@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from 'react';
-import { Routes, Route, Navigate, useParams } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams, useLocation } from 'react-router-dom';
 import i18n, { LANGS, DEFAULT_LANG, PATHS } from './i18n.js';
 import { AppProvider } from './context.jsx';
 import Layout from './components/Layout.jsx';
@@ -15,6 +15,7 @@ import Faq from './pages/Faq.jsx';
 import { Blog, BlogPost } from './pages/Blog.jsx';
 import Legal from './pages/Legal.jsx';
 import NotFound from './pages/NotFound.jsx';
+import ErrorBoundary from './components/ErrorBoundary.jsx';
 
 const AdminApp = lazy(() => import('./admin/AdminApp.jsx'));
 
@@ -37,9 +38,15 @@ function LangRoot() {
   if (!ok) return <Navigate to={`/${detectLang()}`} replace />;
   return (
     <AppProvider lang={lang}>
-      <Layout><PublicRoutes /></Layout>
+      <Layout><PageBoundary><PublicRoutes /></PageBoundary></Layout>
     </AppProvider>
   );
+}
+
+/** Si une page plante, l'en-tête et le pied de page restent affichés ; changer de page réessaie */
+function PageBoundary({ children }) {
+  const { pathname } = useLocation();
+  return <ErrorBoundary resetKey={pathname}>{children}</ErrorBoundary>;
 }
 
 /** Routes publiques générées pour chaque langue avec ses segments traduits */

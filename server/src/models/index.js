@@ -65,6 +65,14 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   legal: { privacy: L(), cancellation: L(), terms: L() },
   emailTemplates: Object,   // surcharges par clé et par langue
   seoHome: { type: SeoByLang(), default: () => ({}) },
+  /** Rubrique « Notre entreprise » de la page d'accueil */
+  about: {
+    enabled: { type: Boolean, default: true },
+    title: L(), text: L(),
+    image: String,                  // photo envoyée depuis l'admin (/uploads/…)
+    video: String,                  // lien YouTube / Vimeo, ou vidéo MP4 envoyée (/uploads/….mp4)
+    stats: [{ _id: false, value: String, label: L() }],   // chiffres clés (ex. « 10 ans » d'expérience)
+  },
 }, { timestamps: true }));
 
 export const Post = mongoose.model('Post', new mongoose.Schema({
