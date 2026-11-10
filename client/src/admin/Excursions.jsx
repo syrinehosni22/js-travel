@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
 import { seoScore, seoErrors, slugify } from '../lib/seo.js';
-import { adminApi, adminToken, API_URL, assetUrl } from '../api.js';
-import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton } from './shared.jsx';
+import { adminApi, adminUpload, assetUrl } from '../api.js';
+import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
 const CATS = { culture: 'Culture', desert: 'Désert', sea: 'Mer', adventure: 'Aventure', family: 'Famille' };
@@ -126,7 +126,7 @@ function TranslationBar({ e, set, onRetranslate, busy }) {
       <div>
         <strong>Saisissez uniquement en français.</strong> À l’enregistrement, l’anglais, l’allemand, l’italien et l’espagnol sont remplis automatiquement
         {info?.provider === 'deepl' && ' (DeepL).'}
-        {info?.provider === 'mymemory' && <> (service gratuit limité. Pour une meilleure qualité, ajoutez une clé DeepL gratuite : <code>DEEPL_API_KEY</code> dans <code>server/.env</code>).</>}
+        {info?.provider === 'mymemory' && <> (service gratuit limité ; votre prestataire technique peut activer DeepL pour une meilleure qualité).</>}
         {info?.provider === 'off' && <> — <b>désactivé</b> (TRANSLATE_PROVIDER=off).</>}
         {!info && '.'}
         <div className="tr-langs">
@@ -206,14 +206,16 @@ function ContentTab({ e, set, onRetranslate, busy }) {
 function InfoTab({ e, set }) {
   const [drag, setDrag] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [upErr, setUpErr] = useState(null);
   async function upload(files) {
-    setUploading(true);
-    const fd = new FormData();
-    [...files].forEach((f) => fd.append('files', f));
-    const res = await fetch(`${API_URL}/api/admin/uploads`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken.get()}` }, body: fd }).then((r) => r.json());
-    set('images', [...(e.images || []), ...res.filter((x) => !x.name.endsWith('.mp4')).map((x) => ({ url: x.url, alt: { ...EMPTY_L(), fr: e.title?.fr || '' } }))]);
-    const video = res.find((x) => x.name.endsWith('.mp4'));
-    if (video) set('video', video.url);
+    if (!files?.length) return;
+    setUploading(true); setUpErr(null);
+    try {
+      const res = await adminUpload(files);
+      set('images', [...(e.images || []), ...res.filter((x) => !x.name.toLowerCase().endsWith('.mp4')).map((x) => ({ url: x.url, alt: { ...EMPTY_L(), fr: e.title?.fr || '' } }))]);
+      const video = res.find((x) => x.name.toLowerCase().endsWith('.mp4'));
+      if (video) set('video', video.url);
+    } catch (x) { setUpErr(x); }
     setUploading(false);
   }
   const csv = (v) => (v || []).join(', ');
@@ -239,6 +241,7 @@ function InfoTab({ e, set }) {
         <strong>Photos et vidéo</strong>
         <p className="muted">Glissez-déposez vos fichiers ici (JPG, PNG, WebP, MP4 · 8 Mo max) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4" hidden onChange={(ev) => upload(ev.target.files)} /></label>. La première photo est l’image principale.</p>
         {uploading && <p>Envoi…</p>}
+        <Err error={upErr} />
         <div className="grid-3">
           {(e.images || []).map((img, i) => (
             <div key={i} className="stack" style={{ gap: 6 }}>
@@ -508,7 +511,7 @@ export function ExcursionEdit() {
       const r = await adminApi.put(`/excursions/${id}`, { ...e, ...extra });
       setE({ ...r.excursion, seoReport: r.seoReport }); setConflicts(r.conflicts || []); setDirty(false);
       const langs = Object.keys(r.translation?.languages || {});
-      if (r.translation?.error) setTrWarn(`Enregistré, mais la traduction automatique a échoué : ${r.translation.error}`);
+      if (r.translation?.error) setTrWarn(`Enregistré, mais ${TRANSLATION_WARNING}.`);
       say(langs.length ? `Enregistré · traduit en ${langs.map((l) => l.toUpperCase()).join(', ')}` : 'Enregistré');
     } catch (x) { setSaveErr(x); }
     setBusy(false);

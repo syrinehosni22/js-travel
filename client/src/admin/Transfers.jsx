@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { slugify } from '../lib/seo.js';
 import { adminApi } from '../api.js';
-import { useLoad, Top, Err, useToast, setPath, useConfirm } from './shared.jsx';
+import { useLoad, Top, Err, useToast, setPath, useConfirm, TRANSLATION_WARNING } from './shared.jsx';
 
 /**
  * Transferts — organisé en 5 onglets simples :
@@ -10,6 +10,13 @@ import { useLoad, Top, Err, useToast, setPath, useConfirm } from './shared.jsx';
  */
 const TYPES = { airport: 'Aéroport', city: 'Ville', hotel: 'Hôtel' };
 const DEFAULT_FACTORS = { sedan: 1, minivan: 1.4, minibus: 2.4, vip: 1.8 };
+/** Types de véhicules proposés par défaut (capacités modifiables dans l'onglet « Véhicules ») */
+const STANDARD_VEHICLES = [
+  { key: 'sedan', label: { fr: 'Berline' }, maxPassengers: 3, maxLuggage: 3, perKm: 0.9, minFare: 30 },
+  { key: 'minivan', label: { fr: 'Minivan' }, maxPassengers: 7, maxLuggage: 7, perKm: 1.2, minFare: 40 },
+  { key: 'minibus', label: { fr: 'Minibus' }, maxPassengers: 16, maxLuggage: 16, perKm: 1.8, minFare: 70 },
+  { key: 'vip', label: { fr: 'Véhicule VIP' }, maxPassengers: 3, maxLuggage: 3, perKm: 1.6, minFare: 60 },
+];
 const key = (a, b) => `${a}|${b}`;
 const sameRoute = (g, a, b) => (g.fromZone === a && g.toZone === b) || (g.fromZone === b && g.toZone === a);
 
@@ -40,7 +47,7 @@ export default function TransfersAdmin() {
     try {
       const { translation, ...r } = await adminApi.put('/transfers/config', cfg);
       setCfg(r); setDirty(false);
-      say(translation?.error ? `Enregistré (traduction impossible : ${translation.error})` : 'Tarifs enregistrés');
+      say(translation?.error ? `Enregistré (${TRANSLATION_WARNING})` : 'Tarifs enregistrés');
     } catch (x) { setErr(x); }
     setSaving(false);
   }
@@ -66,7 +73,7 @@ export default function TransfersAdmin() {
 /* ======================= Prix des trajets ======================= */
 function Prices({ cfg, update, zones, zl }) {
   const [q, setQ] = useState('');
-  const [add, setAdd] = useState({ from: '', to: '', base: '', auto: true });
+  const [add, setAdd] = useState({ from: '', to: '', prices: {} });
   const [msg, setMsg] = useState('');
   const vehicles = cfg.vehicles || [];
 
@@ -107,16 +114,28 @@ function Prices({ cfg, update, zones, zl }) {
     }
   };
 
+  const setAddPrice = (k, v) => setAdd({ ...add, prices: { ...add.prices, [k]: v } });
+  // Propose les prix manquants à partir du premier prix saisi (coefficients tirés de la grille existante)
+  function suggest() {
+    const ref = vehicles.find((v) => +add.prices[v.key] > 0);
+    if (!ref) return setMsg('Saisissez d’abord au moins un prix.');
+    const base = +add.prices[ref.key] / (factors[ref.key] || 1);
+    const prices = { ...add.prices };
+    for (const v of vehicles) if (!(+prices[v.key] > 0)) prices[v.key] = String(Math.round(base * (factors[v.key] || 1)));
+    setAdd({ ...add, prices }); setMsg('');
+  }
+
   function addRoute(ev) {
     ev.preventDefault(); setMsg('');
     if (add.from === add.to) return setMsg('Choisissez deux lieux différents.');
     if (cfg.grid.some((g) => sameRoute(g, add.from, add.to))) return setMsg('Ce trajet existe déjà : modifiez ses prix dans la liste.');
-    const base = +add.base;
-    const rows = vehicles.map((v, i) => ({ fromZone: add.from, toZone: add.to, vehicle: v.key, price: i === 0 || add.auto ? Math.round(base * (i === 0 ? 1 : factors[v.key])) : null }))
-      .filter((g) => g.price != null);
+    const rows = vehicles.filter((v) => +add.prices[v.key] > 0)
+      .map((v) => ({ fromZone: add.from, toZone: add.to, vehicle: v.key, price: Math.round(+add.prices[v.key] * 100) / 100 }));
+    if (!rows.length) return setMsg('Indiquez le prix d’au moins un véhicule.');
+    const skipped = vehicles.filter((v) => !(+add.prices[v.key] > 0)).map((v) => v.label?.fr || v.key);
     update({ ...cfg, grid: [...cfg.grid, ...rows] });
-    setAdd({ from: '', to: '', base: '', auto: true });
-    setMsg(`Trajet ajouté : ${zl(add.from)} ⇄ ${zl(add.to)}. Pensez à enregistrer.`);
+    setAdd({ from: '', to: '', prices: {} });
+    setMsg(`Trajet ajouté : ${zl(add.from)} ⇄ ${zl(add.to)}${skipped.length ? ` (non proposé en ${skipped.join(', ')})` : ''}. Pensez à enregistrer.`);
   }
 
   return (
@@ -125,19 +144,29 @@ function Prices({ cfg, update, zones, zl }) {
 
       <form className="panel add-route" onSubmit={addRoute}>
         <h3>Ajouter un trajet</h3>
-        <div className="add-route__grid">
+        <div className="add-route__places">
           <label className="lbl">Départ<select className="inp" required value={add.from} onChange={(e) => setAdd({ ...add, from: e.target.value })}><option value="">Choisir…</option>{zones.map((z) => <option key={z.key} value={z.key}>{z.label?.fr || z.key}</option>)}</select></label>
+          <span className="add-route__arrow" aria-hidden="true">⇄</span>
           <label className="lbl">Arrivée<select className="inp" required value={add.to} onChange={(e) => setAdd({ ...add, to: e.target.value })}><option value="">Choisir…</option>{zones.map((z) => <option key={z.key} value={z.key}>{z.label?.fr || z.key}</option>)}</select></label>
-          <label className="lbl">Prix {vehicles[0]?.label?.fr || 'véhicule 1'} (€)<input className="inp" type="number" min="0" required value={add.base} onChange={(e) => setAdd({ ...add, base: e.target.value })} /></label>
-          <button className="btn btn--green">Ajouter</button>
         </div>
-        {vehicles.length > 1 && (
-          <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={add.auto} onChange={(e) => setAdd({ ...add, auto: e.target.checked })} />
-            <span>Calculer les autres véhicules automatiquement{add.base ? ' : ' + vehicles.slice(1).map((v) => `${v.label?.fr || v.key} ${Math.round(+add.base * factors[v.key])} €`).join(' · ') : ''}</span>
-          </label>
-        )}
+        <fieldset className="add-route__prices">
+          <legend>Prix par type de véhicule <small>(aller simple, en euros — laissez vide si le véhicule n’est pas proposé)</small></legend>
+          <div className="vehicle-prices">
+            {vehicles.map((v) => (
+              <label key={v.key} className="vehicle-price">
+                <span className="vehicle-price__name">{v.label?.fr || v.key}<small>{v.maxPassengers} pers. · {v.maxLuggage} valises</small></span>
+                <span className="money-inp"><input type="number" min="0" step="1" inputMode="decimal" placeholder="—" value={add.prices[v.key] ?? ''} onChange={(e) => setAddPrice(v.key, e.target.value)} aria-label={`Prix ${v.label?.fr || v.key}`} /><i>€</i></span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          {vehicles.length > 1 ? <button type="button" className="link-btn" onClick={suggest}>Proposer les prix manquants à partir du premier prix saisi</button> : <span />}
+          <button className="btn btn--green">Ajouter le trajet</button>
+        </div>
         {msg && <p className="alert alert--info" role="status">{msg}</p>}
         {zones.length === 0 && <p className="alert alert--warn">Créez d’abord des zones dans l’onglet « Lieux et zones ».</p>}
+        {vehicles.length === 0 && <p className="alert alert--warn">Ajoutez d’abord vos véhicules dans l’onglet « Véhicules ».</p>}
       </form>
 
       <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -167,6 +196,8 @@ function Prices({ cfg, update, zones, zl }) {
 function Vehicles({ cfg, update, set }) {
   const vehicles = cfg.vehicles || [];
   const confirm = useConfirm();
+  const missing = STANDARD_VEHICLES.filter((x) => !vehicles.some((v) => v.key === x.key || (v.label?.fr || '').toLowerCase() === x.label.fr.toLowerCase()));
+  function addStandard() { update({ ...cfg, vehicles: [...vehicles, ...missing.map((x) => ({ ...x, label: { ...x.label } }))] }); }
   function addVehicle() {
     update({ ...cfg, vehicles: [...vehicles, { key: `vehicule-${vehicles.length + 1}`, label: { fr: 'Nouveau véhicule' }, maxPassengers: 4, maxLuggage: 4, perKm: 1, minFare: 30 }] });
   }
@@ -179,6 +210,12 @@ function Vehicles({ cfg, update, set }) {
   return (
     <div className="stack">
       <p className="help">Le nom est saisi en français et traduit automatiquement. L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
+      {missing.length > 0 && (
+        <div className="alert alert--info row" style={{ justifyContent: 'space-between' }}>
+          <span>Véhicules standard absents : {missing.map((x) => x.label.fr).join(', ')}.</span>
+          <button type="button" className="btn btn--outline btn-sm" onClick={addStandard}>Les ajouter</button>
+        </div>
+      )}
       <div className="route-grid">
         {vehicles.map((v, i) => (
           <article key={i} className="route-card">
@@ -358,7 +395,7 @@ function Pages({ data, zones, zl, reload, say }) {
     try {
       const r = f._id ? await adminApi.put(`/transfer-routes/${f._id}`, f) : await adminApi.post('/transfer-routes', f);
       await reload(); setF(empty);
-      say(r.translation?.error ? `Enregistré (traduction impossible : ${r.translation.error})` : 'Page enregistrée et traduite');
+      say(r.translation?.error ? `Enregistré (${TRANSLATION_WARNING})` : 'Page enregistrée et traduite');
     } catch (x) { setErr(x); }
     setBusy(false);
   }

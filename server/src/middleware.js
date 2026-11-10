@@ -44,11 +44,36 @@ export async function antiSpam(req, _res, next) {
   next();
 }
 
-export function errorHandler(err, _req, res, _next) {
-  if (err instanceof ZodError) return res.status(400).json({ error: 'VALIDATION', details: err.flatten() });
-  if (err instanceof HttpError) return res.status(err.status).json({ error: err.code, message: err.message, details: err.details });
-  if (err?.code === 11000) return res.status(409).json({ error: 'DUPLICATE', details: err.keyValue });
+/** Route d'API inconnue : réponse JSON (et non la page HTML d'Express « Cannot GET … ») */
+export function apiNotFound(_req, res) {
+  res.status(404).json({ error: 'NOT_FOUND' });
+}
+
+/**
+ * Gestion centrale des erreurs : le client reçoit uniquement un code (ex. VALIDATION, NOT_FOUND)
+ * et, au besoin, un message rédigé pour l'utilisateur. Jamais de trace technique ni de message interne.
+ * Le détail complet est écrit dans les journaux du serveur.
+ */
+export function errorHandler(err, req, res, _next) {
+  if (res.headersSent) return;
+  if (err instanceof ZodError) {
+    const { fieldErrors } = err.flatten();
+    return res.status(400).json({ error: 'VALIDATION', details: { fields: Object.keys(fieldErrors || {}) } });
+  }
+  if (err instanceof HttpError) {
+    if (err.status >= 500) console.error(`[api] ${req.method} ${req.originalUrl} →`, err.code, err.message);
+    const body = { error: err.code };
+    // Message lisible seulement s'il a été écrit pour l'utilisateur (sinon le message vaut le code)
+    if (err.message && err.message !== err.code && err.status < 500) body.message = err.message;
+    if (err.details && err.status < 500) body.details = err.details;
+    return res.status(err.status).json(body);
+  }
+  if (err?.code === 11000) return res.status(409).json({ error: 'DUPLICATE' });
   if (err?.name === 'CastError') return res.status(400).json({ error: 'BAD_ID' });
-  console.error(err);
+  if (err?.name === 'ValidationError') return res.status(400).json({ error: 'VALIDATION', details: { fields: Object.keys(err.errors || {}) } });
+  if (err?.type === 'entity.parse.failed') return res.status(400).json({ error: 'BAD_REQUEST' });
+  if (err?.type === 'entity.too.large' || err?.code === 'LIMIT_FILE_SIZE') return res.status(413).json({ error: 'TOO_LARGE' });
+  if (err?.name === 'MulterError') return res.status(400).json({ error: 'BAD_FILE' });
+  console.error(`[api] ${req.method} ${req.originalUrl} →`, err);
   res.status(500).json({ error: 'SERVER_ERROR' });
 }

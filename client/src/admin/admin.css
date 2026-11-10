@@ -134,3 +134,19 @@ select.inp { text-overflow: ellipsis; }
 @media (max-width: 760px) { .edit-row { grid-template-columns: 1fr 1fr; } .edit-row > .inp:first-child, .edit-row > .actions { grid-column: 1 / -1; } .edit-row > .actions { justify-content: flex-start; } }
 .place-list li:has(> .edit-row) { display: block; }
 @media (max-width: 640px) { .actions { flex-wrap: wrap; } }
+
+/* Ajout d'un trajet : un prix par type de véhicule */
+.add-route__places { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 12px; align-items: end; }
+.add-route__arrow { padding-bottom: 12px; color: var(--muted); font-size: 18px; }
+.add-route__prices { border: 0; margin: 0; padding: 0; min-width: 0; }
+.add-route__prices legend { font-weight: 700; margin-bottom: 10px; padding: 0; }
+.add-route__prices legend small { font-weight: 400; color: var(--muted); }
+.vehicle-prices { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+.vehicle-price { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: #fff; border: 1px solid var(--line); border-radius: 12px; font-weight: 600; min-width: 0; }
+.vehicle-price__name { min-width: 0; }
+.vehicle-price small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+@media (max-width: 560px) {
+  .add-route__places { grid-template-columns: 1fr; }
+  .add-route__arrow { display: none; }
+  .add-route .row .btn { width: 100%; }
+}

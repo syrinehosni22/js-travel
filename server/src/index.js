@@ -9,7 +9,7 @@ import { config } from './config.js';
 import publicRoutes from './routes/public.js';
 import adminRoutes, { UPLOAD_DIR } from './routes/admin.js';
 import seoRoutes from './routes/seo.js';
-import { errorHandler } from './middleware.js';
+import { errorHandler, apiNotFound } from './middleware.js';
 import { startJobs } from './jobs.js';
 import { refreshRates } from './services/settings.js';
 import { bootstrap } from './seed-data.js';
@@ -28,6 +28,7 @@ app.get('/api/health', (_req, res) => res.json({ ok: true, db: mongoose.connecti
 app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
 app.use(seoRoutes);
+app.use('/api', apiNotFound);
 
 // Le front React est un projet séparé (dossier client/), servi par Nginx ou un hébergeur statique.
 
