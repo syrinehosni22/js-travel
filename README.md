@@ -1,67 +1,68 @@
-# Plateforme excursions et transferts — Tunisie
+# JS Travel Tunisia — excursions privées et transferts
 
-React (Vite) + Node.js (Express) + MongoDB (Mongoose). Design : direction D « Voyage classique ».
+Deux projets **totalement indépendants**, chacun avec son `package.json`, ses dépendances et son `.env` :
 
 ```
-tunisia-tours/
-├── shared/          Moteur de prix + règles SEO, utilisés par le site ET l'API (mêmes calculs partout)
-│   ├── pricing.js   §3 et §4.3 : minimum garanti, saisons, enfants, zones, options, remises, devises, transferts
-│   ├── seo.js       §8.2 : slug, champs obligatoires, score « à la Yoast »
-│   └── pricing.test.js
-├── server/          API REST
-│   └── src/
-│       ├── models/      Excursion, Booking, Transfer (zones, lieux, grille), User, Promo, Partner, Settings, Post…
-│       ├── services/    booking (recalcul serveur, disponibilités), notify (e-mail + WhatsApp), voucher (PDF), settings (taux)
-│       ├── routes/      public.js, admin.js, seo.js (sitemap, robots, 301)
-│       ├── jobs.js      rappel J-1, demande d'avis, mise à jour des taux
-│       └── seed.js      données de départ
-└── client/          Site public + back-office (/admin)
-    └── src/
-        ├── pages/       Accueil, catalogue, fiche + calculateur, transferts, panier, réservation, espace client, contact, FAQ, blog
-        ├── admin/       Tableau de bord, réservations, planning, excursions (5 langues, tarifs, SEO), transferts, promos…
-        └── i18n.js      5 langues, URL traduites (/fr/transferts, /de/ausfluege…)
+js-travel/
+├── client/    Site public + back-office (React / Vite)   → fichiers statiques (dist/)
+├── server/    API (Node.js / Express / MongoDB)            → port 4000
+├── deploy/    Configuration Nginx du serveur de production
+└── docker-compose.yml   (optionnel : MongoDB + API + site en conteneurs)
 ```
 
-## Démarrer en local
+Le client parle à l'API uniquement par HTTP (`/api/...`). Rien n'est importé d'un projet à l'autre :
+le calcul des prix et les règles SEO existent en deux exemplaires identiques
+(`client/src/lib/` et `server/src/lib/`) — **si vous modifiez l'un, recopiez-le dans l'autre**.
 
-Prérequis : Node.js 20+, MongoDB 7 (local ou MongoDB Atlas).
+## Démarrer en local (2 terminaux)
+
+Prérequis : Node.js 20+, MongoDB 7+ (local ou MongoDB Atlas).
 
 ```bash
+# Terminal 1 — API
+cd server
 npm install
-cp server/.env.example server/.env      # puis remplir les valeurs
-npm run dev                             # API http://localhost:4000 · site http://localhost:5173
+cp .env.example .env        # puis remplir les valeurs
+npm run dev                 # http://localhost:4000
+
+# Terminal 2 — site
+cd client
+npm install
+npm run dev                 # http://localhost:5173 (les appels /api sont envoyés au port 4000)
 ```
 
-Au démarrage, le serveur :
-- crée **automatiquement le compte administrateur** (`ADMIN_EMAIL` / `ADMIN_PASSWORD` du `.env`) s'il n'existe pas ;
-- remplit la base si elle est vide (3 excursions, transferts, FAQ… dans les 5 langues) ;
-- complète les traductions manquantes des données de démarrage, sans rien écraser.
+- Site : http://localhost:5173 · Back-office : http://localhost:5173/admin
+- Au premier démarrage, l'API crée seule le compte administrateur (`ADMIN_EMAIL` / `ADMIN_PASSWORD` du `server/.env`)
+  et, si la base est vide, les données de démonstration dans les 5 langues.
+- Tests : `cd server && npm test` (moteur de prix) · `cd client && npm test` (pages et traductions)
 
-`npm run seed` reste disponible (`npm run seed -- --reset` vide la base puis la remplit).
+## Production (un seul serveur Ubuntu + Nginx)
 
-- Site : http://localhost:5173 (redirige vers la langue du navigateur)
-- Back-office : http://localhost:5173/admin — par défaut `admin@example.com` / `ChangeMoi123!`
-- Mot de passe oublié : mettre `ADMIN_RESET=true` dans `server/.env`, redémarrer, se connecter, puis remettre `false`.
-- Le serveur doit afficher `[db] connecté à la base tunisia-tours` : sinon MongoDB n'est pas démarré ou `MONGODB_URI` est faux.
+```bash
+# API
+cd server && npm install --omit=dev && cp .env.example .env && nano .env
+pm2 start ecosystem.config.cjs && pm2 save && pm2 startup
+
+# Site
+cd ../client && npm install && npm run build
+sudo mkdir -p /var/www/js-travel && sudo cp -r dist/* /var/www/js-travel/
+
+# Nginx : sert le site et renvoie /api, /uploads, sitemap.xml, robots.txt vers l'API
+sudo cp ../deploy/nginx-js-travel.conf /etc/nginx/sites-available/js-travel
+sudo ln -sf /etc/nginx/sites-available/js-travel /etc/nginx/sites-enabled/
+sudo rm -f /etc/nginx/sites-enabled/default && sudo nginx -t && sudo systemctl reload nginx
+```
+
+Mises à jour : `cd server && ./deploy.sh` (API) et `cd client && ./deploy.sh` (site), indépendamment.
+
+API sur un **autre domaine** que le site (ex. `api.mon-site.com`) : mettre `VITE_API_URL=https://api.mon-site.com`
+dans `client/.env` avant `npm run build`, et l'adresse du site dans `CORS_ORIGIN` du `server/.env`.
+
+Avec Docker : `docker compose up -d --build` (site sur le port 80).
 
 ### Traductions
-- **Saisie en français uniquement** : à l’enregistrement d’une excursion, d’un trajet, d’un véhicule, d’un lieu, d’une zone, d’un article ou de la FAQ, l’anglais, l’allemand, l’italien et l’espagnol sont remplis automatiquement.
-  Si le français est modifié, les autres langues sont retraduites, sauf celles marquées « Relu » ou corrigées à la main.
-- Service : DeepL si `DEEPL_API_KEY` est renseigné (recommandé), sinon MyMemory (gratuit, quota limité).
-- Interface : `client/src/i18n.js` — les 5 langues sont complètes ; `npm test -w client` échoue si une clé manque dans une langue.
-- Contenu (excursions, FAQ, mentions, lieux, véhicules) : stocké en base dans les 5 langues, modifiable dans l'admin.
-  Une excursion n'apparaît dans une langue que si cette langue est cochée dans « Langues publiées ».
-- Les traductions allemandes, italiennes et espagnoles sont à faire relire par un locuteur natif.
-- Le back-office reste en français.
-- Tests : `npm test` (moteur de prix) et `npm test -w client` (rendu des pages)
-
-## Production
-
-```bash
-docker compose up -d
-docker compose exec app npm run seed
-```
-L'API sert le site compilé sur le port 4000. Placer un reverse proxy HTTPS (Caddy, Nginx) devant.
+- **Saisie en français uniquement** dans l'admin : l'anglais, l'allemand, l'italien et l'espagnol sont remplis automatiquement à l'enregistrement.
+- Service : DeepL si `DEEPL_API_KEY` est renseigné dans `server/.env` (recommandé), sinon MyMemory (gratuit, quota limité).
 
 ## Identité visuelle
 
@@ -69,14 +70,14 @@ Logo JS Travel Tunisia dans `client/public/brand/` (emblème clair, emblème bla
 
 ## Photos
 
-13 photos libres de droits (licence Unsplash, usage commercial autorisé) de lieux tunisiens vérifiés : Sidi Bou Saïd, Carthage, Ksar Ghilane, Djerba, El Jem, Sousse, Mahdia, Tataouine. Liste, crédits et emplacements : **IMAGES.md**.
-Elles sont servies en tailles adaptées à chaque écran (640 à 2400 px, WebP/AVIF automatique). Pour les héberger sur votre serveur : `node scripts/download-images.mjs` puis `VITE_LOCAL_IMAGES=1 npm run build`.
+13 photos libres de droits (licence Unsplash, usage commercial autorisé) de lieux tunisiens vérifiés : Sidi Bou Saïd, Carthage, Ksar Ghilane, Djerba, El Jem, Sousse, Mahdia, Tataouine. Liste, crédits et emplacements : **client/IMAGES.md**.
+Elles sont servies en tailles adaptées à chaque écran (640 à 2400 px, WebP/AVIF automatique). Pour les héberger sur votre serveur : `cd client && npm run images` puis `VITE_LOCAL_IMAGES=1 npm run build`.
 
 ## Ce qui est couvert
 
 | Cahier des charges | Où |
 |---|---|
-| §3 Calculateur (5 modes, minimum garanti, seuil, saisons, enfants/bébés, zones, langue du guide, options par personne/véhicule/réservation, remises, devises) | `shared/pricing.js`, `PriceCalculator.jsx` |
+| §3 Calculateur (5 modes, minimum garanti, seuil, saisons, enfants/bébés, zones, langue du guide, options par personne/véhicule/réservation, remises, devises) | `server/src/lib/pricing.js` (copie dans `client/src/lib/`), `PriceCalculator.jsx` |
 | §3.5 Prix recalculé côté serveur et figé dans la réservation | `services/booking.js` → `createBooking` |
 | §3.6 Admin : M et p par saison, seuil calculé, alerte minimum inatteignable, simulateur, historique des prix | `admin/Excursions.jsx` (onglet Tarifs) |
 | §4 Transferts : lieux + saisie semi-automatique, grille par zones et véhicule, choix du véhicule selon passagers/bagages, nuit, siège enfant, panneau, aller-retour, délai minimum, vente croisée | `TransferForm.jsx`, `Transfers.jsx`, `admin/Transfers.jsx` |
@@ -85,7 +86,7 @@ Elles sont servies en tailles adaptées à chaque écran (640 à 2400 px, WebP/A
 | §6 5 langues, URL traduites, hreflang, détection + mémorisation, devises EUR/GBP/TND (taux quotidien ou manuel), écran de traduction côte à côte, pré-traduction DeepL, statut « relu » | `i18n.js`, `admin/Excursions.jsx` |
 | §7 Admin : tableau de bord + alertes, réservations (statuts, montant encaissé, actions groupées, filtres enregistrés, export CSV), planning jour/semaine avec glisser-déposer des chauffeurs, rôles, 2FA, journal des actions, recherche globale | `admin/*`, `routes/admin.js` |
 | §7.3 Notifications : équipe (e-mail + WhatsApp), client (confirmation, rappel J-1, chauffeur, annulation, avis), feuille de route chauffeur | `services/notify.js`, `jobs.js` |
-| §8 SEO : onglet SEO par langue, compteurs, aperçu Google, score, publication bloquée si incomplet, mot-clé unique, 301 automatiques, sitemap avec hreflang, données structurées (TouristTrip/Product, FAQPage, BreadcrumbList, LocalBusiness) | `shared/seo.js`, `routes/seo.js`, `components/ui.jsx` (`Seo`) |
+| §8 SEO : onglet SEO par langue, compteurs, aperçu Google, score, publication bloquée si incomplet, mot-clé unique, 301 automatiques, sitemap avec hreflang, données structurées (TouristTrip/Product, FAQPage, BreadcrumbList, LocalBusiness) | `server/src/lib/seo.js` (copie dans `client/src/lib/`), `routes/seo.js`, `components/ui.jsx` (`Seo`) |
 | Cookies Consent Mode v2 + GTM, WhatsApp flottant, retour en haut, anti-spam (champ piège + Cloudflare Turnstile) | `Layout.jsx`, `middleware.js` |
 
 ## Points à compléter avant la mise en ligne
@@ -94,7 +95,7 @@ Elles sont servies en tailles adaptées à chaque écran (640 à 2400 px, WebP/A
 2. **WhatsApp.** L'API WhatsApp Cloud n'autorise les messages texte libres que dans les 24 h suivant un message du client. Pour les confirmations et rappels, il faut créer et faire valider des **modèles de messages** dans Meta Business, puis adapter `sendWhatsApp` (type `template`).
 3. **Widget d'avis Tripadvisor + Google** : coller le script du prestataire choisi dans l'emplacement `#reviews-widget` (accueil).
 4. **Google Search Console** (clics et position dans le tableau SEO) et **Google Places** (adresses libres + distance pour le prix au km) : non branchés ; le moteur de prix gère déjà le calcul au km si la distance est fournie.
-5. **Traductions** : l'interface est complète en FR et EN ; DE, IT, ES couvrent les éléments principaux et retombent sur l'anglais ailleurs. Les contenus d'exemple n'existent qu'en FR/EN.
+5. **Traductions** : interface complète dans les 5 langues ; contenu saisi en français et traduit automatiquement (DeepL recommandé). Les traductions DE/IT/ES sont à faire relire.
 6. **Prix d'exemple** : seuls ceux de Carthage viennent du cahier des charges ; tous les autres (excursions, grille de transferts) sont à remplacer dans le back-office.
 7. **Compte client** : l'espace client fonctionne par lien sécurisé envoyé par e-mail (sans mot de passe). Un compte avec mot de passe est à ajouter si souhaité.
 8. **Stockage des photos** : sur le disque du serveur (`server/uploads`). Pour plusieurs serveurs, passer à S3 ou Cloudinary.

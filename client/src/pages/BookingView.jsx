@@ -1,6 +1,6 @@
 import { useParams, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { api } from '../api.js';
+import { api, API_URL } from '../api.js';
 import { useApp, useFetch } from '../context.jsx';
 import { Seo, Loading, ErrorBox, PriceLines } from '../components/ui.jsx';
 
@@ -22,7 +22,7 @@ export default function BookingView() {
 
   if (loading) return <Loading />;
   if (error) return <div className="container" style={{ padding: 48 }}><ErrorBox error={error} /></div>;
-  const base = `/api/bookings/${ref}`;
+  const base = `${API_URL}/api/bookings/${ref}`;
   return (
     <>
       <Seo title={`${t('confirm.title')} ${ref}`} noindex />

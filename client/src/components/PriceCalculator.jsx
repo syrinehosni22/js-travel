@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { computeExcursionPrice } from '@tt/shared';
+import { computeExcursionPrice } from '../lib/pricing.js';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { path, langName } from '../i18n.js';

@@ -1,8 +1,8 @@
 /**
  * Crée l'administrateur ou réinitialise son mot de passe, sans démarrer le site.
  * (Le serveur crée déjà l'admin automatiquement au démarrage ; ce script sert en cas de mot de passe oublié.)
- *   npm run create-admin -w server
- *   npm run create-admin -w server -- email@exemple.com MonMotDePasse123
+ *   npm run create-admin
+ *   npm run create-admin -- email@exemple.com MonMotDePasse123
  */
 import mongoose from 'mongoose';
 import { config } from './config.js';

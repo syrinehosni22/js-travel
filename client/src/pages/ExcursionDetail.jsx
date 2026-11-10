@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { api } from '../api.js';
+import { api, assetUrl } from '../api.js';
 import { useApp, useFetch } from '../context.jsx';
 import { LANGS, path, langName, placeName } from '../i18n.js';
 import { Seo, Media, TourCard, Loading, ErrorBox, Icon } from '../components/ui.jsx';
@@ -48,7 +48,7 @@ function Gallery({ images, title }) {
         <div className="lightbox" role="dialog" aria-modal="true" aria-label={title}>
           <button type="button" className="lightbox__close" onClick={() => setOpen(null)} aria-label={t('detail.close')}><Icon name="x" /></button>
           <div className="lightbox__list">
-            {images.map((img, i) => <img key={i} src={img.url} alt={img.alt || title} loading={Math.abs(i - open) < 2 ? 'eager' : 'lazy'} ref={(el) => { if (el && i === open) el.scrollIntoView({ block: 'center' }); }} />)}
+            {images.map((img, i) => <img key={i} src={assetUrl(img.url)} alt={img.alt || title} loading={Math.abs(i - open) < 2 ? 'eager' : 'lazy'} ref={(el) => { if (el && i === open) el.scrollIntoView({ block: 'center' }); }} />)}
           </div>
         </div>
       )}

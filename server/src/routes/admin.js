@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { authenticator } from 'otplib';
-import { computeExcursionPrice, groupTable, minimumWarnings } from '@tt/shared';
+import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
 import { User, Excursion, Booking, Location, Zone, TransferConfig, TransferRoute, Promo, Partner, Settings, Post, Message, AuditLog, Redirect, Customer, Waitlist } from '../models/index.js';
 import { auth, allow, audit, signToken } from '../middleware.js';
 import { HttpError } from '../services/booking.js';

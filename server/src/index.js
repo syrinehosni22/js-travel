@@ -3,7 +3,6 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
-import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
@@ -30,12 +29,7 @@ app.use('/api', publicRoutes);
 app.use('/api/admin', adminRoutes);
 app.use(seoRoutes);
 
-// En production, l'API sert aussi le site React compilé
-const dist = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../client/dist');
-if (fs.existsSync(dist)) {
-  app.use(express.static(dist, { maxAge: '7d', index: false }));
-  app.get(/^\/(?!api).*/, (_req, res) => res.sendFile(path.join(dist, 'index.html')));
-}
+// Le front React est un projet séparé (dossier client/), servi par Nginx ou un hébergeur statique.
 
 app.use(errorHandler);
 

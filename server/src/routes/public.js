@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import { fromPrice, seasonFor, computeExcursionPrice } from '@tt/shared';
+import { fromPrice, seasonFor, computeExcursionPrice } from '../lib/pricing.js';
 import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User } from '../models/index.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';

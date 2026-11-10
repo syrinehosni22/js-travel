@@ -1,4 +1,12 @@
-/** Client HTTP minimal pour l'API. */
+/**
+ * Client HTTP minimal pour l'API.
+ * VITE_API_URL (fichier client/.env) = adresse de l'API si elle est sur un autre domaine,
+ * ex. https://api.mon-site.com — vide = même domaine (Nginx renvoie /api vers le serveur).
+ */
+export const API_URL = (import.meta.env.VITE_API_URL || '').replace(/\/$/, '');
+/** Fichiers envoyés depuis l'admin (/uploads/...) : servis par l'API */
+export const assetUrl = (u) => (u && u.startsWith('/uploads/') ? `${API_URL}${u}` : u);
+
 export class ApiError extends Error {
   constructor(status, body) { super(body?.message || body?.error || `HTTP ${status}`); this.status = status; this.body = body; }
 }
@@ -8,7 +16,7 @@ async function request(method, path, body, { token, lang } = {}) {
   if (body !== undefined) headers['Content-Type'] = 'application/json';
   if (token) headers.Authorization = `Bearer ${token}`;
   const sep = path.includes('?') ? '&' : '?';
-  const url = `/api${path}${lang ? `${sep}lang=${lang}` : ''}`;
+  const url = `${API_URL}/api${path}${lang ? `${sep}lang=${lang}` : ''}`;
   let res;
   try { res = await fetch(url, { method, headers, body: body !== undefined ? JSON.stringify(body) : undefined }); }
   catch { throw new ApiError(0, { error: 'NETWORK' }); }
@@ -40,7 +48,7 @@ export const adminApi = Object.fromEntries(['get', 'post', 'put', 'patch', 'del'
 
 /** Téléchargement authentifié (CSV) */
 export async function adminDownload(path, filename) {
-  const res = await fetch(`/api/admin${path}`, { headers: { Authorization: `Bearer ${adminToken.get()}` } });
+  const res = await fetch(`${API_URL}/api/admin${path}`, { headers: { Authorization: `Bearer ${adminToken.get()}` } });
   const blob = await res.blob();
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob); a.download = filename; a.click();

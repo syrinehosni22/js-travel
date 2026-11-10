@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { computeExcursionPrice, groupTable, minimumWarnings } from '@tt/shared';
-import { seoScore, seoErrors, slugify } from '@tt/shared/seo';
-import { adminApi, adminToken } from '../api.js';
+import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
+import { seoScore, seoErrors, slugify } from '../lib/seo.js';
+import { adminApi, adminToken, API_URL, assetUrl } from '../api.js';
 import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
@@ -210,7 +210,7 @@ function InfoTab({ e, set }) {
     setUploading(true);
     const fd = new FormData();
     [...files].forEach((f) => fd.append('files', f));
-    const res = await fetch('/api/admin/uploads', { method: 'POST', headers: { Authorization: `Bearer ${adminToken.get()}` }, body: fd }).then((r) => r.json());
+    const res = await fetch(`${API_URL}/api/admin/uploads`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken.get()}` }, body: fd }).then((r) => r.json());
     set('images', [...(e.images || []), ...res.filter((x) => !x.name.endsWith('.mp4')).map((x) => ({ url: x.url, alt: { ...EMPTY_L(), fr: e.title?.fr || '' } }))]);
     const video = res.find((x) => x.name.endsWith('.mp4'));
     if (video) set('video', video.url);
@@ -242,7 +242,7 @@ function InfoTab({ e, set }) {
         <div className="grid-3">
           {(e.images || []).map((img, i) => (
             <div key={i} className="stack" style={{ gap: 6 }}>
-              <div className="media" style={{ height: 120, borderRadius: 12 }}><img src={img.url} alt="" /></div>
+              <div className="media" style={{ height: 120, borderRadius: 12 }}><img src={assetUrl(img.url)} alt="" /></div>
               <input className="inp" placeholder="Description de la photo (français)" aria-label="Description de la photo" value={img.alt?.fr || ''} onChange={(ev) => set(`images.${i}.alt.fr`, ev.target.value)} />
               <div className="row">
                 {i > 0 && <button type="button" className="btn btn--outline btn-sm" onClick={() => { const a = [...e.images]; [a[0], a[i]] = [a[i], a[0]]; set('images', a); }}>Image principale</button>}

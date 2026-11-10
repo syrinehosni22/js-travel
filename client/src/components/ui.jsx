@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { useApp } from '../context.jsx';
 import { LANGS, path, placeName } from '../i18n.js';
 import { PHOTOS, photoUrl, srcSet, keyFromUrl, photoAlt } from '../images.js';
+import { assetUrl } from '../api.js';
 
 export const BRAND = 'JS Travel Tunisia';
 
@@ -51,7 +52,7 @@ export function Media({ photo, src, alt, ph, className = '', style, children, ea
   const { lang } = useApp() || {};
   // Photo de la photothèque (par clé ou par URL Unsplash enregistrée en base) → tailles responsives
   const key = (photo && PHOTOS[photo] ? photo : null) || keyFromUrl(src);
-  const url = key ? photoUrl(key, 1600) : src;
+  const url = key ? photoUrl(key, 1600) : assetUrl(src);
   const set = url ? srcSet(key || url) : undefined;
   return (
     <div className={`media ${className}`} style={{ '--ph': ph || PHOTOS[key]?.ph || '#DDE6E2', ...style }}>
@@ -81,7 +82,7 @@ export function Seo({ title, description, canonical, alternates, image, noindex,
       {noindex && <meta name="robots" content="noindex" />}
       <meta property="og:title" content={title} />
       {description && <meta property="og:description" content={description} />}
-      <meta property="og:image" content={(() => { const i = image || '/brand/og-default.jpg'; return i.startsWith('http') ? i : origin + i; })()} />
+      <meta property="og:image" content={(() => { const i = assetUrl(image || '/brand/og-default.jpg'); return i.startsWith('http') ? i : origin + i; })()} />
       <meta property="og:type" content="website" />
       {jsonLd && <script type="application/ld+json">{JSON.stringify(jsonLd)}</script>}
     </Helmet>

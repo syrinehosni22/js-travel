@@ -35,6 +35,13 @@ r.get('/robots.txt', (_req, res) => {
   res.type('text/plain').send(`User-agent: *\nDisallow: /admin\nDisallow: /api/\nSitemap: ${config.siteUrl}/sitemap.xml\n`);
 });
 
+/** Pour le front séparé : la page « introuvable » demande si l'adresse a été déplacée */
+r.get('/api/redirect', async (req, res) => {
+  const from = String(req.query.path || '').replace(/\/$/, '');
+  const x = from ? await Redirect.findOne({ from }).lean() : null;
+  res.json({ to: x?.to || null });
+});
+
 /** Redirections 301 enregistrées lors des changements de slug */
 r.use(async (req, res, next) => {
   if (req.method !== 'GET' || req.path.startsWith('/api') || req.path.startsWith('/uploads') || /\.[a-z0-9]+$/i.test(req.path)) return next();

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate } from './pricing.js';
+import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate } from '../src/lib/pricing.js';
 
 const carthage = {
   pricing: {

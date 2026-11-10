@@ -1,18 +1,23 @@
-# Démarrage complet : docker compose up -d   puis   docker compose exec app npm run seed
+# Lance les 3 services : base MongoDB, API (server/) et site (client/)
+#   docker compose up -d --build     →  site sur http://IP-DU-SERVEUR
 services:
   mongo:
     image: mongo:7
     restart: unless-stopped
     volumes: [mongo-data:/data/db]
-  app:
-    build: .
+  api:
+    build: ./server
     restart: unless-stopped
     env_file: server/.env
     environment:
       MONGODB_URI: mongodb://mongo:27017/tunisia-tours
-    ports: ["4000:4000"]
-    volumes: [uploads:/app/server/uploads]
+    volumes: [uploads:/app/uploads]
     depends_on: [mongo]
+  web:
+    build: ./client
+    restart: unless-stopped
+    ports: ["80:80"]
+    depends_on: [api]
 volumes:
   mongo-data:
   uploads:

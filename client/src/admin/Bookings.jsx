@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { adminApi, adminDownload } from '../api.js';
+import { adminApi, adminDownload, API_URL } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
 import { useLoad, Top, eur, Status, STATUS, Err, useToast, useConfirm } from './shared.jsx';
 
@@ -111,7 +111,7 @@ function BookingDrawer({ id, onClose, onSaved }) {
           </form>
           <div className="row">
             <button className="btn btn--outline btn-sm" onClick={() => adminApi.post(`/bookings/${id}/resend`).then(() => say('Bon renvoyé'))}>Renvoyer le bon</button>
-            <a className="btn btn--outline btn-sm" href={`/api/bookings/${b.ref}/voucher.pdf?token=${b.token}`} target="_blank" rel="noreferrer">Voir le PDF</a>
+            <a className="btn btn--outline btn-sm" href={`${API_URL}/api/bookings/${b.ref}/voucher.pdf?token=${b.token}`} target="_blank" rel="noreferrer">Voir le PDF</a>
           </div>
         </>}
         {canEdit && (

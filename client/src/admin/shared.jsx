@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
-import { formatMoney } from '@tt/shared';
+import { formatMoney } from '../lib/pricing.js';
 
 export const eur = (v) => (v == null ? '—' : formatMoney(v, 'EUR', 'fr'));
 export const STATUS = { new: 'Nouvelle', confirmed: 'Confirmée', paid_on_site: 'Réglée sur place', completed: 'Terminée', cancelled: 'Annulée', no_show: 'Absent' };

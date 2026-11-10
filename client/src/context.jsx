@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
-import { formatMoney } from '@tt/shared';
+import { formatMoney } from './lib/pricing.js';
 import { api } from './api.js';
 
 const AppCtx = createContext(null);

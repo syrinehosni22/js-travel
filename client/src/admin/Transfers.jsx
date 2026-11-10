@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { slugify } from '@tt/shared/seo';
+import { slugify } from '../lib/seo.js';
 import { adminApi } from '../api.js';
 import { useLoad, Top, Err, useToast, setPath, useConfirm } from './shared.jsx';
 

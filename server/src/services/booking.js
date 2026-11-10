@@ -1,4 +1,4 @@
-import { computeExcursionPrice, computeTransferQuotes, discountRate, round2 } from '@tt/shared';
+import { computeExcursionPrice, computeTransferQuotes, discountRate, round2 } from '../lib/pricing.js';
 import { Booking, Excursion, Promo, Partner, TransferConfig, Location, Customer } from '../models/index.js';
 import { getSettings, rateFor } from './settings.js';
 

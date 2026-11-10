@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 
 // Emblème blanc du logo (copié depuis client/public/brand)
 const EMBLEM = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../client/public/brand/emblem-white.png');
-import { formatMoney } from '@tt/shared';
+import { formatMoney } from '../lib/pricing.js';
 import { t } from './i18n.js';
 
 /** Bon PDF (réservation ou transfert) envoyé au client — §4.4 et §5.3. Renvoie un Buffer. */

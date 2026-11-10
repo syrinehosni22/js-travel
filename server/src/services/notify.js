@@ -1,5 +1,5 @@
 import nodemailer from 'nodemailer';
-import { formatMoney } from '@tt/shared';
+import { formatMoney } from '../lib/pricing.js';
 import { config } from '../config.js';
 import { t } from './i18n.js';
 import { voucherPdf } from './voucher.js';

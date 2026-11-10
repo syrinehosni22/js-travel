@@ -1,5 +1,5 @@
 {
-  "name": "@tt/server",
+  "name": "js-travel-server",
   "version": "1.0.0",
   "type": "module",
   "main": "src/index.js",
@@ -7,10 +7,10 @@
     "dev": "node --watch src/index.js",
     "start": "NODE_ENV=production node src/index.js",
     "seed": "node src/seed.js",
-    "create-admin": "node src/create-admin.js"
+    "create-admin": "node src/create-admin.js",
+    "test": "node --test test/*.test.js"
   },
   "dependencies": {
-    "@tt/shared": "1.0.0",
     "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
@@ -26,5 +26,9 @@
     "otplib": "^12.0.1",
     "pdfkit": "^0.15.1",
     "zod": "^3.23.8"
+  },
+  "description": "API Node.js / Express / MongoDB de JS Travel Tunisia",
+  "engines": {
+    "node": ">=20"
   }
 }
