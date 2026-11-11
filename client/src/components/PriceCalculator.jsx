@@ -125,8 +125,14 @@ export default function PriceCalculator({ excursion }) {
         {pr.options?.length > 0 && (
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="field" style={{ padding: 0, marginBottom: 8 }}>{t('calc.options')}</legend>
-            <div className="chips">
-              {pr.options.map((o) => <button type="button" key={o.key} className="chip" aria-pressed={options.includes(o.key)} onClick={() => toggle(o.key)}>{options.includes(o.key) ? '✓ ' : '+ '}{o.label} · {money(o.price)} {unit(o)}</button>)}
+            <div className="extras-list">
+              {pr.options.map((o) => (
+                <label key={o.key} className={`extra${options.includes(o.key) ? ' is-on' : ''}`}>
+                  <input type="checkbox" checked={options.includes(o.key)} onChange={() => toggle(o.key)} />
+                  <span className="extra__name">{o.label}{o.description && <small>{o.description}</small>}</span>
+                  <span className="extra__price">+{money(o.price)} <small>{unit(o)}</small></span>
+                </label>
+              ))}
             </div>
           </fieldset>
         )}

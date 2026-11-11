@@ -44,7 +44,7 @@ function localize(e, l, full = false) {
     cancellationFreeHours: e.cancellationFreeHours,
     availability: { mode: e.availability?.mode, confirmWithinHours: e.availability?.confirmWithinHours },
     // Règles de prix publiques : le navigateur calcule l'affichage instantané, le serveur recalcule à la réservation.
-    pricing: { ...e.pricing, options: (e.pricing?.options || []).map((o) => ({ ...o, label: pick(o.label, l) })) },
+    pricing: { ...e.pricing, options: (e.pricing?.options || []).filter((o) => o.key && pick(o.label, l)).map((o) => ({ ...o, label: pick(o.label, l), description: pick(o.description, l) })) },
     seo: e.seo?.[l] || {},
   };
 }

@@ -22,7 +22,7 @@ const PricingSchema = new mongoose.Schema({
   weekendSupplement: { type: Number, default: 0 },
   zones: [{ _id: false, key: String, label: String, fee: Number }],
   guideLanguages: [{ _id: false, lang: String, fee: Number }],
-  options: [{ _id: false, key: String, label: L(), price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'] } }],
+  options: [{ _id: false, key: String, label: L(), description: L(), price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'] } }],   // extras payants
 }, { _id: false });
 
 const ExcursionSchema = new mongoose.Schema({

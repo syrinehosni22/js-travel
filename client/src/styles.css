@@ -573,3 +573,16 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Mention TTC à côté des totaux */
 .ttc { font-size: .55em; font-weight: 600; letter-spacing: .02em; opacity: .75; margin-left: 2px; }
+
+/* Extras payants des excursions */
+.extras-list { display: grid; gap: 8px; }
+.extra { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; border: 1px solid var(--field); border-radius: 12px; cursor: pointer; background: #fff; min-height: 48px; }
+.extra.is-on { border: 2px solid var(--green); background: var(--green-soft); padding: 9px 11px; }
+.extra input { width: 20px; height: 20px; accent-color: var(--green); margin: 0; }
+.extra__name { font-weight: 600; min-width: 0; }
+.extra__name small, .extras-ul small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.extra__price { font-weight: 700; white-space: nowrap; text-align: right; }
+.extra__price small { font-weight: 400; color: var(--muted); }
+.extras-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.extras-ul li { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
+@media (max-width: 480px) { .extras-ul li { flex-direction: column; gap: 4px; } .extras-ul .extra__price { text-align: left; } }

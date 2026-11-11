@@ -209,3 +209,9 @@ select.inp { text-overflow: ellipsis; }
 .promo--preview strong { display: block; font-size: 18px; }
 .promo--preview span { font-size: 14px; }
 .promo--preview .btn { background: #0B1529; color: #fff; pointer-events: none; }
+
+/* Extras payants (fiche excursion) */
+.extras-admin { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; }
+.extra-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; min-width: 0; }
+.extra-card__head { display: flex; gap: 6px; align-items: center; }
+.extra-card__head .inp { flex: 1; min-width: 0; font-weight: 600; }

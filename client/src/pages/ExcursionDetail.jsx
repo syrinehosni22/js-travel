@@ -177,6 +177,19 @@ export default function ExcursionDetail() {
               </section>
             )}
 
+            {e.pricing?.options?.length > 0 && (
+              <section className="gyg-sec" aria-labelledby="extras-title">
+                <h2 id="extras-title">{t('detail.extras')}</h2>
+                <p className="muted" style={{ marginTop: -6 }}>{t('detail.extrasHint')}</p>
+                <ul className="extras-ul">
+                  {e.pricing.options.map((o) => (
+                    <li key={o.key}><span><strong>{o.label}</strong>{o.description && <small>{o.description}</small>}</span>
+                      <span className="extra__price">+{money(o.price)} <small>{t(o.per === 'person' ? 'calc.perPersonOpt' : o.per === 'vehicle' ? 'calc.perVehicleOpt' : 'calc.perBookingOpt')} {t('price.ttc')}</small></span></li>
+                  ))}
+                </ul>
+              </section>
+            )}
+
             {e.program?.length > 0 && (
               <section className="gyg-sec">
                 <h2>{t('detail.program')}</h2>

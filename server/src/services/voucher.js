@@ -45,6 +45,8 @@ export function voucherPdf(booking, { contact = {} } = {}) {
     doc.text(`${t(lang, 'date')} : ${it.date}${it.time ? ' · ' + it.time : ''}`);
     const n = (k, one, many) => `${k} ${t(lang, k === 1 ? one : many)}`;
     doc.text(`${t(lang, 'people')} : ${n(p.adult || 0, 'adult', 'adults')}${p.child ? `, ${n(p.child, 'child', 'children')}` : ''}${p.infant ? `, ${n(p.infant, 'infant', 'infants')}` : ''}`);
+    const extras = (it.lines || []).filter((l) => l.key === 'option');
+    if (extras.length) doc.text(`${t(lang, 'extras')} : ${extras.map((l) => `${l.label}${l.qty > 1 ? ` × ${l.qty}` : ''}`).join(', ')}`);
     if (it.type === 'transfer' && it.transfer) {
       doc.text(`${t(lang, 'pickup')} : ${it.transfer.from}${it.transfer.flightNumber ? ` · ${t(lang, 'flight')} ${it.transfer.flightNumber}` : ''}`);
       doc.text(`${t(lang, 'dropoff')} : ${it.transfer.to}`);

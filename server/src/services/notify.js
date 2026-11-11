@@ -40,7 +40,8 @@ function layout(title, body) {
 
 function summary(b) {
   const L = b.lang;
-  const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small></td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
+  const extras = (i) => (i.lines || []).filter((l) => l.key === 'option').map((l) => `${l.label}${l.qty > 1 ? ` × ${l.qty}` : ''}`).join(', ');
+  const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small>${extras(i) ? `<br><small>${t(L, 'extras')} : ${extras(i)}</small>` : ''}</td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
   return `<table style="width:100%;border-collapse:collapse">${rows}<tr><td style="padding-top:10px;font-weight:bold">${t(L, 'total')}</td><td style="text-align:right;font-weight:bold">${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}</td></tr></table>`;
 }
 
