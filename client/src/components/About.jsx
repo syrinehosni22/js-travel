@@ -39,9 +39,9 @@ export default function About() {
   const services = t('about.services', { returnObjects: true });
 
   return (
-    <section className="section about" aria-labelledby="about-title">
-      <div className="container about__grid">
-        <div className="about__media">
+    <section className="section company" aria-labelledby="company-title">
+      <div className="container company__grid">
+        <div className="company__media">
           {playing && video ? (
             video.kind === 'iframe'
               ? <iframe src={video.src} title={title} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen loading="lazy" />
@@ -49,23 +49,23 @@ export default function About() {
           ) : (
             <Media src={poster} photo={poster ? undefined : 'sidiBouSaidMosque'} alt="" sizes="(max-width: 900px) 100vw, 50vw">
               {video && (
-                <button type="button" className="about__play" onClick={() => setPlaying(true)}>
-                  <span className="about__play-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg></span>
+                <button type="button" className="company__play" onClick={() => setPlaying(true)}>
+                  <span className="company__play-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg></span>
                   <span>{t('about.watch')}</span>
                 </button>
               )}
             </Media>
           )}
         </div>
-        <div className="about__text">
+        <div className="company__text">
           <span className="eyebrow">{t('about.eyebrow')}</span>
-          <h2 id="about-title" className="section__title">{title}</h2>
+          <h2 id="company-title" className="section__title">{title}</h2>
           {text.split(/\n\s*\n|\n/).filter((p) => p.trim()).map((p, i) => <p key={i}>{p}</p>)}
           {Array.isArray(services) && (
-            <ul className="about__services">
+            <ul className="company__services">
               {services.map((x) => (
                 <li key={x.key}>
-                  <span className="about__icon" aria-hidden="true">{x.key === 'transfers' ? ICONS.car : ICONS.compass}</span>
+                  <span className="company__icon" aria-hidden="true">{x.key === 'transfers' ? ICONS.car : ICONS.compass}</span>
                   <div>
                     <h3>{x.title}</h3>
                     <p>{x.text}</p>
@@ -76,7 +76,7 @@ export default function About() {
             </ul>
           )}
           {stats.length > 0 && (
-            <dl className="about__stats">
+            <dl className="company__stats">
               {stats.slice(0, 4).map((s, i) => <div key={i}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}
             </dl>
           )}

@@ -11,6 +11,7 @@ import { getSettings, clearSettingsCache, refreshRates } from '../services/setti
 import { notifyStatus, sendDriverRoadmap } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { seoSummary } from '../services/seoSummary.js';
+import { cleanText } from '../services/text.js';
 import { LANGS, config } from '../config.js';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
@@ -501,6 +502,8 @@ r.delete('/users/:id', allow(), async (req, res) => {
 r.get('/settings', allow('manager', 'editor'), async (_req, res) => res.json(await getSettings()));
 r.put('/settings', allow(), async (req, res) => {
   const { _id, createdAt, updatedAt, ...data } = req.body;
+  // Numéros et adresses copiés-collés : on retire les caractères invisibles
+  if (data.contact) data.contact = Object.fromEntries(Object.entries(data.contact).map(([k, v]) => [k, typeof v === 'string' ? cleanText(v) : v]));
   const prev = await Settings.findOne().lean();
   const translation = await autoTranslate(data, prev);
   const s = await Settings.findOneAndUpdate({}, data, { new: true, upsert: true });

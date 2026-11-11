@@ -7,11 +7,15 @@ import { fileURLToPath } from 'node:url';
 const EMBLEM = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../client/public/brand/emblem-white.png');
 import { formatMoney } from '../lib/pricing.js';
 import { t } from './i18n.js';
+import { pdfText } from './text.js';
 
 /** Bon PDF (réservation ou transfert) envoyé au client — §4.4 et §5.3. Renvoie un Buffer. */
 export function voucherPdf(booking, { contact = {}, drivers = {} } = {}) {
   const lang = booking.lang || 'en';
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  // Les polices intégrées du PDF ne savent pas afficher tous les caractères (flèches, caractères invisibles…)
+  const rawText = doc.text.bind(doc);
+  doc.text = (str, ...rest) => rawText(typeof str === 'string' ? pdfText(str) : str, ...rest);
   const chunks = [];
   doc.on('data', (c) => chunks.push(c));
   const done = new Promise((resolve) => doc.on('end', () => resolve(Buffer.concat(chunks))));
@@ -39,10 +43,11 @@ export function voucherPdf(booking, { contact = {}, drivers = {} } = {}) {
     doc.fontSize(11).fillColor('#14213D');
     const p = it.participants || {};
     doc.text(`${t(lang, 'date')} : ${it.date}${it.time ? ' · ' + it.time : ''}`);
-    doc.text(`${t(lang, 'people')} : ${p.adult || 0} ${t(lang, 'adults')}${p.child ? `, ${p.child} ${t(lang, 'children')}` : ''}${p.infant ? `, ${p.infant} ${t(lang, 'infants')}` : ''}`);
+    const n = (k, one, many) => `${k} ${t(lang, k === 1 ? one : many)}`;
+    doc.text(`${t(lang, 'people')} : ${n(p.adult || 0, 'adult', 'adults')}${p.child ? `, ${n(p.child, 'child', 'children')}` : ''}${p.infant ? `, ${n(p.infant, 'infant', 'infants')}` : ''}`);
     if (it.type === 'transfer' && it.transfer) {
-      doc.text(`${t(lang, 'pickup')} : ${it.transfer.from}${it.transfer.flightNumber ? ' · vol ' + it.transfer.flightNumber : ''}`);
-      doc.text(`→ ${it.transfer.to}`);
+      doc.text(`${t(lang, 'pickup')} : ${it.transfer.from}${it.transfer.flightNumber ? ` · ${t(lang, 'flight')} ${it.transfer.flightNumber}` : ''}`);
+      doc.text(`${t(lang, 'dropoff')} : ${it.transfer.to}`);
     } else if (it.zone) doc.text(`${t(lang, 'pickup')} : ${it.zone}`);
     const d = it.driver && drivers[String(it.driver)];
     if (d) doc.text(`${t(lang, 'driver')} : ${d.name} · ${d.phone || ''}`);
