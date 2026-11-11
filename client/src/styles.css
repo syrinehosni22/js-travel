@@ -554,3 +554,19 @@ button, input, select { font: inherit; color: inherit; }
 .about__services a { font-size: 14px; font-weight: 600; color: var(--green); text-underline-offset: 3px; }
 @media (max-width: 1100px) and (min-width: 901px) { .about__services { grid-template-columns: 1fr; } }
 @media (max-width: 560px) { .about__services { grid-template-columns: 1fr; } }
+
+/* Carte du trajet (Leaflet) */
+.route-map { position: relative; border-radius: var(--radius-sm, 12px); overflow: hidden; border: 1px solid var(--line); background: #E8EEF0; isolation: isolate; }
+.route-map__canvas { position: absolute; inset: 0; }
+.route-map__msg { position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); font-size: 14px; }
+.map-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; font: 700 13px/1 var(--font, system-ui); color: #fff; background: var(--green, #14213D); border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.35); }
+.map-pin--start { background: #136B3E; }
+.map-pin--end { background: var(--gold, #C9A227); color: #0B1529; }
+.leaflet-container { font-family: var(--font, system-ui); }
+/* Fiche excursion : liste des étapes sous la carte */
+.route-stops { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 10px; counter-reset: stop; }
+.route-stops li { display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 2px 12px; align-items: start; }
+.route-stops li .map-pin { grid-row: span 2; width: 28px; height: 28px; font-size: 12px; box-shadow: none; }
+.route-stops strong { font-weight: 600; }
+.route-stops small { color: var(--muted); }
+.route-meta { color: var(--muted); font-size: 14px; margin: 0 0 12px; }

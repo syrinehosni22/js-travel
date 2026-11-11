@@ -10,6 +10,7 @@ import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
 import { notifyStatus, sendDriverRoadmap } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
+import { seoSummary } from '../services/seoSummary.js';
 import { LANGS, config } from '../config.js';
 import jwt from 'jsonwebtoken';
 import multer from 'multer';
@@ -541,6 +542,17 @@ r.get('/reports/partners', allow('manager', 'partner'), async (req, res) => {
 r.get('/seo', allow('editor', 'manager'), async (_req, res) => {
   const list = await Excursion.find().lean();
   res.json(list.map((e) => ({ id: e._id, title: e.title?.fr || e.title?.en, report: seoOverview(e) })));
+});
+
+/** Bilan SEO global du site (tableau de bord) */
+r.get('/seo/summary', allow('editor', 'manager'), async (_req, res) => {
+  const [excursions, posts, routes, settings] = await Promise.all([
+    Excursion.find().select('title slug summary description images seo published publishedLangs related').lean(),
+    Post.find().select('slug published').lean(),
+    TransferRoute.find().select('slug published').lean(),
+    getSettings(),
+  ]);
+  res.json(seoSummary({ excursions, posts, routes, settings, siteUrl: config.siteUrl }));
 });
 
 r.get('/audit', allow(), async (req, res) => res.json(await AuditLog.find(req.query.entity ? { entity: req.query.entity } : {}).sort({ createdAt: -1 }).limit(200).lean()));

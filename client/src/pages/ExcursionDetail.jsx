@@ -7,6 +7,7 @@ import { LANGS, path, langName, placeName } from '../i18n.js';
 import { Seo, Media, TourCard, Loading, ErrorBox, Icon } from '../components/ui.jsx';
 import PriceCalculator from '../components/PriceCalculator.jsx';
 import NotFound from './NotFound.jsx';
+import RouteMap from '../components/RouteMap.jsx';
 import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
@@ -180,6 +181,22 @@ export default function ExcursionDetail() {
               <section className="gyg-sec">
                 <h2>{t('detail.program')}</h2>
                 <ol className="timeline">{e.program.map((s, i) => <li key={i}>{s.time && <time>{s.time}</time>}<span>{s.text}</span></li>)}</ol>
+              </section>
+            )}
+
+            {e.itinerary?.stops?.length > 1 && (
+              <section className="gyg-sec" aria-labelledby="route-title">
+                <h2 id="route-title">{t('detail.route')}</h2>
+                <RouteMap stops={e.itinerary.stops} path={e.itinerary.path} label={t('detail.routeMap')} height={360} />
+                <ol className="route-stops">
+                  {e.itinerary.stops.map((x, i) => (
+                    <li key={i}>
+                      <span className={`map-pin map-pin--${i === 0 ? 'start' : i === e.itinerary.stops.length - 1 ? 'end' : 'stop'}`} aria-hidden="true">{i + 1}</span>
+                      <strong>{x.name}</strong>
+                      {x.note && <small>{x.note}</small>}
+                    </li>
+                  ))}
+                </ol>
               </section>
             )}
 

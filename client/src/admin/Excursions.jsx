@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
 import { seoScore, seoErrors, slugify } from '../lib/seo.js';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
+import RouteMap, { roadPath, searchPlace } from '../components/RouteMap.jsx';
 import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
@@ -256,12 +257,92 @@ function InfoTab({ e, set }) {
         </div>
         {e.video && <p>Vidéo : {e.video} <RemoveButton what="la vidéo" className="link-btn" label="retirer" onConfirm={() => set('video', '')} /></p>}
       </div>
-      <label className="lbl">Carte du parcours (URL d’intégration Google Maps)<input className="inp" value={e.mapEmbed || ''} onChange={(ev) => set('mapEmbed', ev.target.value)} /></label>
+      <label className="lbl">Carte Google Maps du point de rendez-vous (facultatif — le trajet se règle dans l’onglet « Carte et trajet »)<input className="inp" value={e.mapEmbed || ''} onChange={(ev) => set('mapEmbed', ev.target.value)} /></label>
     </div>
   );
 }
 
 /** Tarifs + simulateur (§3.6) */
+/* ======================= Carte et trajet ======================= */
+function MapTab({ e, set }) {
+  const it = e.itinerary || {};
+  const stops = it.stops || [];
+  const [q, setQ] = useState('');
+  const [found, setFound] = useState(null);
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState(null);
+  // Toute modification des étapes efface le tracé routier (il ne correspondrait plus)
+  const setStops = (next) => { set('itinerary.stops', next); if (it.path?.length) set('itinerary.path', []); };
+  const add = (p) => setStops([...stops, { name: { fr: p.name || `Étape ${stops.length + 1}` }, note: { fr: '' }, lat: p.lat, lng: p.lng }]);
+  const move = (i, d) => { const n = [...stops]; [n[i], n[i + d]] = [n[i + d], n[i]]; setStops(n); };
+
+  async function search(ev) {
+    ev.preventDefault(); if (!q.trim()) return;
+    setBusy('search'); setMsg(null);
+    try { const r = await searchPlace(q.trim()); setFound(r); if (!r.length) setMsg({ type: 'warn', text: 'Aucun lieu trouvé. Essayez un autre nom ou cliquez directement sur la carte.' }); }
+    catch { setMsg({ type: 'warn', text: 'La recherche de lieux est indisponible pour le moment : cliquez directement sur la carte.' }); }
+    setBusy('');
+  }
+  async function trace() {
+    setBusy('route'); setMsg(null);
+    try {
+      const r = await roadPath(stops);
+      set('itinerary.path', r.path);
+      setMsg({ type: 'ok', text: `Tracé par la route : environ ${r.km} km, ${Math.floor(r.minutes / 60)} h ${String(r.minutes % 60).padStart(2, '0')} de route. Pensez à enregistrer.` });
+    } catch { setMsg({ type: 'warn', text: 'Le calcul de l’itinéraire routier est indisponible pour le moment. Le trajet reste affiché en lignes droites.' }); }
+    setBusy('');
+  }
+
+  return (
+    <div className="stack map-tab">
+      <p className="help">Placez les étapes de l’excursion dans l’ordre : <b>cliquez sur la carte</b> ou recherchez un lieu. Déplacez un repère pour l’ajuster. La 1<sup>re</sup> étape est le départ, la dernière l’arrivée. Les noms sont saisis en français et traduits automatiquement.</p>
+      <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={it.enabled !== false} onChange={(ev) => set('itinerary.enabled', ev.target.checked)} />Afficher la carte du trajet sur la fiche (2 étapes minimum)</label>
+
+      <form className="row" onSubmit={search}>
+        <input className="inp" style={{ flex: '1 1 260px' }} placeholder="Rechercher un lieu (ex. Douz, Amphithéâtre d’El Jem)" value={q} onChange={(ev) => setQ(ev.target.value)} aria-label="Rechercher un lieu" />
+        <button className="btn btn--outline" disabled={busy === 'search'}>{busy === 'search' ? 'Recherche…' : 'Rechercher'}</button>
+      </form>
+      {found?.length > 0 && (
+        <ul className="place-list panel" style={{ margin: 0 }}>
+          {found.map((p, i) => (
+            <li key={i}><span title={p.full}>{p.name}</span><button type="button" className="btn btn--green btn-sm" onClick={() => { add(p); setFound(null); setQ(''); }}>Ajouter comme étape {stops.length + 1}</button></li>
+          ))}
+        </ul>
+      )}
+
+      <RouteMap editable stops={stops.map((x) => ({ ...x, name: x.name?.fr }))} path={it.path} height={420}
+        onAdd={(p) => add(p)} onMove={(i, p) => setStops(stops.map((x, k) => (k === i ? { ...x, ...p } : x)))} />
+
+      <div className="row" style={{ justifyContent: 'space-between' }}>
+        <span className="muted">{stops.length} étape{stops.length > 1 ? 's' : ''} · {it.path?.length > 1 ? 'tracé par la route' : 'tracé en lignes droites'}</span>
+        <div className="row">
+          {it.path?.length > 1 && <button type="button" className="btn btn--outline btn-sm" onClick={() => set('itinerary.path', [])}>Revenir aux lignes droites</button>}
+          <button type="button" className="btn btn--green btn-sm" disabled={stops.length < 2 || busy === 'route'} onClick={trace}>{busy === 'route' ? 'Calcul…' : 'Tracer l’itinéraire par la route'}</button>
+        </div>
+      </div>
+      {msg && <p className={`alert alert--${msg.type === 'ok' ? 'ok' : 'warn'}`} role="status" style={{ margin: 0 }}>{msg.text}</p>}
+
+      <ol className="stop-list">
+        {stops.map((x, i) => (
+          <li key={i} className="stop-row">
+            <span className={`map-pin map-pin--${i === 0 ? 'start' : i === stops.length - 1 ? 'end' : 'stop'}`} aria-hidden="true">{i + 1}</span>
+            <div className="stop-row__fields">
+              <input className="inp" value={x.name?.fr || ''} placeholder="Nom de l’étape" onChange={(ev) => set(`itinerary.stops.${i}.name.fr`, ev.target.value)} aria-label={`Nom de l’étape ${i + 1}`} />
+              <input className="inp" value={x.note?.fr || ''} placeholder="Précision facultative (ex. arrêt 1 h, déjeuner)" onChange={(ev) => set(`itinerary.stops.${i}.note.fr`, ev.target.value)} aria-label={`Précision de l’étape ${i + 1}`} />
+            </div>
+            <div className="stop-row__actions">
+              <button type="button" className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter">↑</button>
+              <button type="button" className="icon-btn" disabled={i === stops.length - 1} onClick={() => move(i, 1)} aria-label="Descendre">↓</button>
+              <button type="button" className="icon-btn" onClick={() => setStops(stops.filter((_, k) => k !== i))} aria-label={`Supprimer l’étape ${i + 1}`}>×</button>
+            </div>
+          </li>
+        ))}
+      </ol>
+      {stops.length === 0 && <p className="muted">Aucune étape. Cliquez sur la carte pour placer le point de départ.</p>}
+    </div>
+  );
+}
+
 function PricingTab({ e, set, id }) {
   const pr = e.pricing || {};
   const P = (k) => `pricing.${k}`;
@@ -518,7 +599,7 @@ export function ExcursionEdit() {
   }
   if (error) return <Err error={error} />;
   if (!e) return <p>Chargement…</p>;
-  const TABS = { content: 'Textes', info: 'Infos et photos', pricing: 'Tarifs', availability: 'Disponibilités', seo: 'SEO', publish: 'Publication' };
+  const TABS = { content: 'Textes', info: 'Infos et photos', map: 'Carte et trajet', pricing: 'Tarifs', availability: 'Disponibilités', seo: 'SEO', publish: 'Publication' };
   return (
     <>
       <Top title={e.title?.fr || e.title?.en || 'Excursion'}>
@@ -532,6 +613,7 @@ export function ExcursionEdit() {
       <div className="panel">
         {tab === 'content' && <ContentTab e={e} set={set} busy={busy} onRetranslate={() => save({ _retranslate: true })} />}
         {tab === 'info' && <InfoTab e={e} set={set} />}
+        {tab === 'map' && <MapTab e={e} set={set} />}
         {tab === 'pricing' && <PricingTab e={e} set={set} id={id} />}
         {tab === 'availability' && <AvailabilityTab e={e} set={set} />}
         {tab === 'seo' && <SeoTab e={e} set={set} />}
