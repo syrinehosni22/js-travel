@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { fromPrice, seasonFor, computeExcursionPrice } from '../lib/pricing.js';
+import { cleanText } from '../services/text.js';
 import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User } from '../models/index.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';
@@ -197,7 +198,7 @@ const itemSchema = z.object({
 });
 const bookingSchema = z.object({
   items: z.array(itemSchema).min(1).max(10),
-  customer: z.object({ name: z.string().min(2).max(120), email: z.string().email(), phone: z.string().min(6).max(30), hotel: z.string().max(120).optional(), room: z.string().max(20).optional(), notes: z.string().max(2000).optional() }),
+  customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
   promoCode: z.string().optional(), partnerCode: z.string().optional(),
   currency: z.enum(['EUR', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
   consent: z.object({ terms: z.boolean(), cancellation: z.literal(true) }),
