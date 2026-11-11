@@ -69,7 +69,7 @@ export default function Cart() {
         {cart.length > 0 && (
           <aside className="card stack">
             <PromoBox />
-            <div className="row" style={{ justifyContent: 'space-between' }}><strong>{t('cart.total')}</strong><strong className="price">{money(total, 2)}</strong></div>
+            <div className="row" style={{ justifyContent: 'space-between' }}><strong>{t('cart.total')}</strong><strong className="price">{money(total, 2)}<small className="ttc"> {t('price.ttc')}</small></strong></div>
             <small className="muted">{t('price.payOnSite')} · {t('cart.finalNote')}</small>
             <Link to={path(lang, 'checkout')} className="btn btn--primary btn--lg">{t('cart.checkout')}</Link>
           </aside>

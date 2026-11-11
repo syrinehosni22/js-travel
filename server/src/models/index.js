@@ -55,7 +55,7 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
     blocked: [String],
   },
   earlyBooking: { daysBefore: Number, percent: Number },
-  fx: { mode: { type: String, default: 'auto' }, GBP: Number, TND: Number, updatedAt: Date },
+  fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, TND: Number, updatedAt: Date },
   contact: { phone: String, whatsapp: String, viber: String, email: String, address: String, mapEmbed: String },
   social: { tripadvisor: String, facebook: String, instagram: String, tiktok: String, googleReviews: String },
   reviews: { rating: Number, count: Number },

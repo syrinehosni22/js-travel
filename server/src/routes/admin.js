@@ -165,7 +165,7 @@ r.patch('/bookings/:id', allow('manager'), async (req, res) => {
   await b.save();
   await audit(req, 'update', 'booking', b._id, { status: before.status }, { status: b.status });
   if (body.status && body.status !== prevStatus && ['confirmed', 'cancelled'].includes(body.status)) notifyStatus(b, body.status).catch(console.error);
-  else if (driverChanged) notifyStatus(b, 'driver').catch(console.error);
+  // Le chauffeur est une information interne : le client n'est pas prévenu d'un changement de chauffeur
   res.json(b);
 });
 

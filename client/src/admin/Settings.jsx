@@ -53,6 +53,7 @@ export default function SettingsAdmin() {
           <h2 style={{ fontSize: 18 }}>Devises et remises</h2>
           <div className="grid-4">
             <label className="lbl">Taux<select className="inp" value={s.fx?.mode || 'auto'} onChange={(e) => set('fx.mode', e.target.value)}><option value="auto">Mise à jour automatique quotidienne</option><option value="manual">Fixé manuellement</option></select></label>
+            {inp('fx.USD', '1 EUR = … USD', 'number')}
             {inp('fx.GBP', '1 EUR = … GBP', 'number')}
             {inp('fx.TND', '1 EUR = … TND', 'number')}
             <p className="muted" style={{ alignSelf: 'flex-end' }}>Mis à jour : {s.fx?.updatedAt ? new Date(s.fx.updatedAt).toLocaleString('fr-FR') : '—'}</p>

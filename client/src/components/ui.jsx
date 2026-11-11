@@ -95,7 +95,7 @@ export function FromPrice({ from }) {
   const { money } = useApp();
   if (!from || from.quote || from.amount == null) return <div className="price">{t('price.quote')}</div>;
   const unit = from.per === 'vehicle' ? t('price.perVehicle') : from.per === 'group' ? t('price.perGroup') : t('price.perPerson');
-  return <div className="price">{money(from.amount)}<small> {unit}{from.from > 1 ? ` · ${t('price.from', { n: from.from })}` : ''}</small></div>;
+  return <div className="price">{money(from.amount)}<small> {unit} {t('price.ttc')}{from.from > 1 ? ` · ${t('price.from', { n: from.from })}` : ''}</small></div>;
 }
 
 const PH = { culture: '#C7D8EA', desert: '#EAD3B2', sea: '#BFE0DD', adventure: '#D7D9B8', family: '#E3C9AE' };

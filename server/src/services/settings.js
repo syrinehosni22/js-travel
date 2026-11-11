@@ -12,14 +12,14 @@ export async function getSettings() {
 }
 export const clearSettingsCache = () => { cache = null; };
 
-/** Taux EUR → devise. EUR par défaut ; GBP et TND en affichage (§6). */
+/** Taux EUR → devise. EUR par défaut ; USD, GBP et TND en affichage (§6). */
 export async function rateFor(currency = 'EUR') {
   if (currency === 'EUR') return 1;
   const s = await getSettings();
   return s.fx?.[currency] || null;
 }
 
-/** Mise à jour quotidienne des taux (open.er-api.com fournit EUR→TND et EUR→GBP sans clé). */
+/** Mise à jour quotidienne des taux (open.er-api.com fournit EUR→USD, EUR→GBP et EUR→TND sans clé). */
 export async function refreshRates() {
   const s = await getSettings();
   if ((s.fx?.mode || config.fxMode) === 'manual') return;
@@ -27,9 +27,9 @@ export async function refreshRates() {
     const res = await fetch('https://open.er-api.com/v6/latest/EUR');
     const json = await res.json();
     if (json.result !== 'success') throw new Error('réponse invalide');
-    await Settings.updateOne({}, { $set: { 'fx.GBP': json.rates.GBP, 'fx.TND': json.rates.TND, 'fx.updatedAt': new Date() } });
+    await Settings.updateOne({}, { $set: { 'fx.USD': json.rates.USD, 'fx.GBP': json.rates.GBP, 'fx.TND': json.rates.TND, 'fx.updatedAt': new Date() } });
     clearSettingsCache();
-    console.log('[fx] taux mis à jour', json.rates.GBP, json.rates.TND);
+    console.log('[fx] taux mis à jour', json.rates.USD, json.rates.GBP, json.rates.TND);
   } catch (e) {
     console.warn('[fx] mise à jour impossible, taux précédents conservés :', e.message);
   }

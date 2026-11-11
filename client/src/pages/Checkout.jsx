@@ -66,7 +66,7 @@ export default function Checkout() {
           <h2 style={{ fontSize: 20 }}>{t('checkout.summary')}</h2>
           {cart.map((i) => <CartLine key={i.id} item={i} />)}
           <PromoBox />
-          <div className="card row" style={{ justifyContent: 'space-between' }}><strong>{t('price.total')}</strong><strong className="price">{money(total, 2)}</strong></div>
+          <div className="card row" style={{ justifyContent: 'space-between' }}><strong>{t('price.total')}</strong><strong className="price">{money(total, 2)}<small className="ttc"> {t('price.ttc')}</small></strong></div>
           <small className="muted">{t('price.payOnSite')} · {t('cart.finalNote')}</small>
         </aside>
       </div>

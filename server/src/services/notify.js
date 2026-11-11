@@ -41,7 +41,7 @@ function layout(title, body) {
 function summary(b) {
   const L = b.lang;
   const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small></td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
-  return `<table style="width:100%;border-collapse:collapse">${rows}<tr><td style="padding-top:10px;font-weight:bold">${t(L, 'total')}</td><td style="text-align:right;font-weight:bold">${formatMoney(b.totalEur, 'EUR', L)}</td></tr></table>`;
+  return `<table style="width:100%;border-collapse:collapse">${rows}<tr><td style="padding-top:10px;font-weight:bold">${t(L, 'total')}</td><td style="text-align:right;font-weight:bold">${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}</td></tr></table>`;
 }
 
 export async function notifyBookingCreated(b) {
@@ -58,7 +58,7 @@ export async function notifyBookingCreated(b) {
        <p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   });
-  await sendWhatsApp(b.customer.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)}\n${manageUrl(b)}`);
+  await sendWhatsApp(b.customer.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}\n${manageUrl(b)}`);
   // Équipe : e-mail + WhatsApp (§7.3)
   const team = `Nouvelle réservation ${b.ref} · ${b.customer.name} · ${b.items.map((i) => `${i.title} (${i.date})`).join(', ')} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`;
   await sendMail({ to: config.teamEmail, subject: `Nouvelle réservation ${b.ref}`, html: layout('Nouvelle réservation', `<p>${team}</p>${summary({ ...b.toObject?.() ?? b, lang: 'fr' })}`) });
@@ -68,8 +68,9 @@ export async function notifyBookingCreated(b) {
 export async function notifyStatus(b, kind) {
   const L = b.lang;
   const s = await getSettings();
-  const titles = { confirmed: t(L, 'confirmed'), cancelled: t(L, 'cancelled'), reminder: t(L, 'reminder'), driver: t(L, 'driver') };
-  const pdf = ['confirmed', 'driver', 'reminder'].includes(kind) ? await voucherPdf(b, { contact: s.contact }) : null;
+  const titles = { confirmed: t(L, 'confirmed'), cancelled: t(L, 'cancelled'), reminder: t(L, 'reminder') };
+  if (!titles[kind]) return;
+  const pdf = ['confirmed', 'reminder'].includes(kind) ? await voucherPdf(b, { contact: s.contact }) : null;
   await sendMail({
     to: b.customer.email, subject: `${titles[kind]} · ${b.ref}`,
     html: layout(titles[kind], `<p>${t(L, 'hello')} ${b.customer.name},</p><p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b)}<p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),

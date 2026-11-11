@@ -140,6 +140,7 @@ export async function createBooking({ items, customer, promoCode, partnerCode, c
       const { quotes, from, to } = await transferQuotes({ ...t, passengers: it.participants }, { promoCode, currency });
       const q = quotes.find((x) => x.vehicle === t.vehicle);
       if (!q) throw new HttpError(400, 'VEHICLE_UNAVAILABLE');
+      if (q.onRequest) throw new HttpError(400, 'QUOTE_ONLY');
       allInstant = false;
       const fromName = from?.label?.[lang] || from?.name || t.from;
       const toName = to?.label?.[lang] || to?.name || t.to;

@@ -570,3 +570,6 @@ button, input, select { font: inherit; color: inherit; }
 .route-stops strong { font-weight: 600; }
 .route-stops small { color: var(--muted); }
 .route-meta { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+
+/* Mention TTC à côté des totaux */
+.ttc { font-size: .55em; font-weight: 600; letter-spacing: .02em; opacity: .75; margin-left: 2px; }

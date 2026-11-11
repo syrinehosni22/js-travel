@@ -205,7 +205,6 @@ export default function ExcursionDetail() {
                 <h2>{t('detail.meetingPoint')}</h2>
                 <p>{t('detail.pickupText', { cities: cities.join(', ') })}</p>
                 {e.pricing?.zones?.some((z) => z.fee) && <p className="muted">{e.pricing.zones.filter((z) => z.fee).map((z) => `${placeName(z.label || z.key, lang)} +${money(z.fee)}`).join(' · ')}</p>}
-                {e.mapEmbed && <iframe title={t('common.map')} src={e.mapEmbed} className="gyg-map" loading="lazy" />}
               </section>
             )}
 

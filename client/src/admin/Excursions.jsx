@@ -257,7 +257,6 @@ function InfoTab({ e, set }) {
         </div>
         {e.video && <p>Vidéo : {e.video} <RemoveButton what="la vidéo" className="link-btn" label="retirer" onConfirm={() => set('video', '')} /></p>}
       </div>
-      <label className="lbl">Carte Google Maps du point de rendez-vous (facultatif — le trajet se règle dans l’onglet « Carte et trajet »)<input className="inp" value={e.mapEmbed || ''} onChange={(ev) => set('mapEmbed', ev.target.value)} /></label>
     </div>
   );
 }
@@ -437,7 +436,13 @@ function PricingTab({ e, set, id }) {
             <RemoveButton what="cette option" onConfirm={() => set(P('options'), pr.options.filter((_, k) => k !== i))} />
           </div>
         ))}
-        <button type="button" className="link-btn" onClick={() => set(P('options'), [...(pr.options || []), { key: '', label: EMPTY_L(), price: 0, per: 'person' }])}>+ Option</button>
+        <div className="row">
+          <button type="button" className="link-btn" onClick={() => set(P('options'), [...(pr.options || []), { key: '', label: EMPTY_L(), price: 0, per: 'person' }])}>+ Option</button>
+          {!(pr.options || []).some((o) => o.key === 'guide') && (
+            <button type="button" className="btn btn--outline btn-sm" onClick={() => set(P('options'), [...(pr.options || []), { key: 'guide', label: { ...EMPTY_L(), fr: 'Guide accompagnateur' }, price: 0, per: 'booking' }])}>+ Guide (extra)</button>
+          )}
+        </div>
+        {(pr.options || []).some((o) => o.key === 'guide' && !o.price) && <p className="alert alert--warn" style={{ margin: 0 }}>Indiquez le prix du guide : à 0 €, il apparaît comme gratuit pour le client.</p>}
       </fieldset>
 
       {pr.mode !== 'quote' && (
