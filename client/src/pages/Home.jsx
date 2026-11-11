@@ -9,39 +9,35 @@ import TransferForm from '../components/TransferForm.jsx';
 import About from '../components/About.jsx';
 import { waLink } from '../whatsapp.js';
 
-const SLIDES = ['sidiBouSaidStreet', 'ksarGhilane', 'djerbaBeach'];
-const DESTINATIONS = [
-  { name: 'Sidi Bou Saïd', photo: 'sidiBouSaidSea', q: 'Sidi' },
-  { name: 'Sahara', photo: 'saharaDune', category: 'desert' },
-  { name: 'Djerba', photo: 'houmtSouk', q: 'Djerba' },
-  { name: 'Tozeur & Chebika', photo: 'southPalm', q: 'Tozeur' },
-  { name: 'El Jem', photo: 'elJem', q: 'Jem' },
-];
+import { DEFAULT_SLIDES, DEFAULT_DESTINATIONS, BANNER_TARGETS } from '../homeDefaults.js';
+import { PHOTOS } from '../images.js';
 
 function Hero() {
   const { t } = useTranslation();
   const { lang, settings } = useApp();
   const [i, setI] = useState(0);
   const paused = useRef(false);
+  const h = settings?.home?.hero || {};
+  const SLIDES = h.slides?.length ? h.slides : DEFAULT_SLIDES;
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
     const id = setInterval(() => { if (!paused.current) setI((x) => (x + 1) % SLIDES.length); }, 6000);
     return () => clearInterval(id);
-  }, []);
+  }, [SLIDES.length]);
   const wa = waLink(settings?.contact?.whatsapp, t('hero.waText'));
   return (
     <section className="hero" aria-roledescription="carousel" onMouseEnter={() => (paused.current = true)} onMouseLeave={() => (paused.current = false)} onFocus={() => (paused.current = true)}>
-      {SLIDES.map((key, k) => <Media key={key} photo={key} alt="" sizes="100vw" className={`hero__slide${k === i ? ' is-active' : ''}`} eager={k === 0} />)}
+      {SLIDES.map((key, k) => <Media key={key} photo={key} src={key} alt="" sizes="100vw" className={`hero__slide${k === i % SLIDES.length ? ' is-active' : ''}`} eager={k === 0} />)}
       <div className="container hero__content">
         <span className="eyebrow">{t('hero.eyebrow')}</span>
-        <h1>{t('hero.title')}</h1>
-        <p>{t('hero.text')}</p>
+        <h1>{h.title || t('hero.title')}</h1>
+        <p>{h.text || t('hero.text')}</p>
         <div className="hero__ctas">
           <Link to={path(lang, 'excursions')} className="btn btn--primary btn--lg">{t('hero.see')}</Link>
           {wa && <a href={wa} className="btn btn--ghost btn--lg" target="_blank" rel="noopener noreferrer">{t('hero.whatsapp')}</a>}
         </div>
         <div className="hero__dots" role="tablist">
-          {SLIDES.map((_, k) => <button key={k} className={`hero__dot${k === i ? ' is-active' : ''}`} role="tab" aria-selected={k === i} aria-label={t('hero.slide', { n: k + 1 })} onClick={() => setI(k)} />)}
+          {SLIDES.map((_, k) => <button key={k} className={`hero__dot${k === i % SLIDES.length ? ' is-active' : ''}`} role="tab" aria-selected={k === i % SLIDES.length} aria-label={t('hero.slide', { n: k + 1 })} onClick={() => setI(k)} />)}
         </div>
       </div>
     </section>
@@ -97,6 +93,9 @@ export default function Home() {
   const seo = settings?.seoHome || {};
   const reviews = settings?.reviews;
   const included = t('home.included');
+  const home = settings?.home || {};
+  const banner = home.banner || {};
+  const destinations = home.destinations?.length ? home.destinations : DEFAULT_DESTINATIONS.map((d) => ({ ...d, name: placeName(d.name, lang) }));
   return (
     <>
       <Seo
@@ -111,24 +110,26 @@ export default function Home() {
 
       <section className="section">
         <div className="container">
-          <div className="section__head section__head--center"><span className="eyebrow">{t('home.destinations')}</span><h2 className="section__title">{t('home.destinationsTitle')}</h2></div>
+          <div className="section__head section__head--center"><span className="eyebrow">{t('home.destinations')}</span><h2 className="section__title">{home.destinationsTitle || t('home.destinationsTitle')}</h2></div>
           <div className="dest-grid">
-            {DESTINATIONS.map((d) => (
-              <Link key={d.name} className="dest" to={`${path(lang, 'excursions')}?${d.category ? `category=${d.category}` : `q=${encodeURIComponent(d.q)}`}`}>
-                <Media photo={d.photo} sizes="(max-width: 640px) 78vw, (max-width: 1100px) 50vw, 20vw" />
-                <div className="dest__label"><strong>{placeName(d.name, lang)}</strong></div>
+            {destinations.map((d, k) => (
+              <Link key={k} className="dest" to={`${path(lang, 'excursions')}${d.category ? `?category=${d.category}` : d.q ? `?q=${encodeURIComponent(d.q)}` : ''}`}>
+                <Media photo={d.image} src={d.image} alt={PHOTOS[d.image] ? undefined : d.name} sizes="(max-width: 640px) 78vw, (max-width: 1100px) 50vw, 20vw" />
+                <div className="dest__label"><strong>{d.name}</strong></div>
               </Link>
             ))}
           </div>
         </div>
       </section>
 
-      <section aria-label={t('nav.transfers')}>
-        <div className="container"><div className="promo">
-          <div><h2>{t('home.banner')}</h2><p>{t('home.bannerText')}</p></div>
-          <Link to={path(lang, 'transfers')} className="btn btn--lg">{t('home.bookTransfer')}</Link>
-        </div></div>
-      </section>
+      {banner.enabled !== false && (
+        <section aria-label={banner.title || t('home.banner')}>
+          <div className="container"><div className="promo">
+            <div><h2>{banner.title || t('home.banner')}</h2><p>{banner.text || t('home.bannerText')}</p></div>
+            <Link to={path(lang, BANNER_TARGETS[banner.target] ? banner.target : 'transfers')} className="btn btn--lg">{banner.button || t('home.bookTransfer')}</Link>
+          </div></div>
+        </section>
+      )}
 
       <About />
 

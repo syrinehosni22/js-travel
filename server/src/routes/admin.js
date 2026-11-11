@@ -513,6 +513,18 @@ r.put('/settings', allow(), async (req, res) => {
   res.json({ ...s.toObject(), translation });
 });
 
+/* ================= Page d'accueil (bannières, incontournables) ================= */
+r.get('/home-content', allow('editor', 'manager'), async (_req, res) => res.json((await getSettings()).home || {}));
+r.put('/home-content', allow('editor', 'manager'), async (req, res) => {
+  const home = req.body || {};
+  const prev = (await Settings.findOne().lean())?.home || null;
+  const translation = await autoTranslate(home, prev);
+  const s = await Settings.findOneAndUpdate({}, { $set: { home } }, { new: true, upsert: true });
+  clearSettingsCache();
+  await audit(req, 'update', 'home_content', s._id);
+  res.json({ ...(s.toObject().home || {}), translation });
+});
+
 /* ================= Rapports (§7.1) ================= */
 r.get('/reports/sales', allow('manager'), async (req, res) => {
   const from = req.query.from || new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);
