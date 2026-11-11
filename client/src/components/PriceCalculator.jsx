@@ -89,7 +89,7 @@ export default function PriceCalculator({ excursion }) {
       <section className="card calc" aria-label={t('calc.title')}>
         <div className="calc__from">
           {from?.amount != null && !from.quote
-            ? <><small>{t('detail.from')}</small><div><strong>{money(from.amount)}</strong> <span>{fromUnit}</span></div>{from.from > 1 && <small>{t('price.from', { n: from.from })}</small>}</>
+            ? <><small>{t('detail.from')}</small><div><strong>{money(from.amount)}</strong> <span>{fromUnit} {t('price.ttc')}</span></div>{from.from > 1 && <small>{t('price.from', { n: from.from })}</small>}</>
             : <strong>{t('price.quote')}</strong>}
         </div>
 
@@ -125,8 +125,14 @@ export default function PriceCalculator({ excursion }) {
         {pr.options?.length > 0 && (
           <fieldset style={{ border: 0, padding: 0, margin: 0 }}>
             <legend className="field" style={{ padding: 0, marginBottom: 8 }}>{t('calc.options')}</legend>
-            <div className="chips">
-              {pr.options.map((o) => <button type="button" key={o.key} className="chip" aria-pressed={options.includes(o.key)} onClick={() => toggle(o.key)}>{options.includes(o.key) ? '✓ ' : '+ '}{o.label} · {money(o.price)} {unit(o)}</button>)}
+            <div className="extras-list">
+              {pr.options.map((o) => (
+                <label key={o.key} className={`extra${options.includes(o.key) ? ' is-on' : ''}`}>
+                  <input type="checkbox" checked={options.includes(o.key)} onChange={() => toggle(o.key)} />
+                  <span className="extra__name">{o.label}{o.description && <small>{o.description}</small>}</span>
+                  <span className="extra__price">+{money(o.price)} <small>{unit(o)}</small></span>
+                </label>
+              ))}
             </div>
           </fieldset>
         )}
@@ -135,9 +141,9 @@ export default function PriceCalculator({ excursion }) {
           <div className="calc__total">
             <div className="row" style={{ justifyContent: 'space-between' }}>
               <span>{t('price.total')} <small className="muted">({total} pers.)</small></span>
-              <strong>{money(price.totalEur, 2)}</strong>
+              <strong>{money(price.totalEur, 2)}<small className="ttc"> {t('price.ttc')}</small></strong>
             </div>
-            {price.payers > 0 && <small className="muted">{money(price.perPerson, 2)} {t('price.perPerson')} · {t('price.taxes')}</small>}
+            {price.payers > 0 && <small className="muted">{money(price.perPerson, 2)} {t('price.perPerson')} {t('price.ttc')}</small>}
             <details>
               <summary>{t('price.details')}</summary>
               <PriceLines lines={price.lines} />
@@ -177,8 +183,8 @@ export default function PriceCalculator({ excursion }) {
       {/* Barre fixe en bas d'écran sur mobile */}
       <div className="mobile-bar">
         {date && !price.quote
-          ? <div><small>{t('price.total')}</small><strong>{money(price.totalEur, 2)}</strong></div>
-          : <div><small>{t('detail.from')}</small><strong>{from?.amount != null && !from.quote ? money(from.amount) : t('price.quote')}</strong>{from?.amount != null && !from.quote && <small> {fromUnit}</small>}</div>}
+          ? <div><small>{t('price.total')} {t('price.ttc')}</small><strong>{money(price.totalEur, 2)}</strong></div>
+          : <div><small>{t('detail.from')}</small><strong>{from?.amount != null && !from.quote ? money(from.amount) : t('price.quote')}</strong>{from?.amount != null && !from.quote && <small> {fromUnit} {t('price.ttc')}</small>}</div>}
         <a href="#calculator" className="btn btn--primary">{t('detail.checkAvailability')}</a>
       </div>
     </>

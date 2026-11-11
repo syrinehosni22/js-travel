@@ -43,7 +43,7 @@ function Header() {
               </label>
               <label>{t('common.currency')}
                 <select className="lang-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
+                  <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
                 </select>
               </label>
             </li>
@@ -56,7 +56,7 @@ function Header() {
           </select>
           <label className="visually-hidden" htmlFor="cur">{t('common.currency')}</label>
           <select id="cur" className="lang-select desk-only" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="EUR">€ EUR</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
+            <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
           </select>
           <Link to={path(lang, 'cart')} className="lang-select" style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', color: 'inherit' }} aria-label={`${t('nav.cart')} (${cart.length})`}>
             <Icon name="bag" /> {cart.length > 0 && <span className="tag">{cart.length}</span>}

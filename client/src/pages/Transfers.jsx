@@ -6,10 +6,11 @@ import { useApp } from '../context.jsx';
 import { LANGS, path } from '../i18n.js';
 import { Seo, PriceLines, ErrorBox, TourCard, Media } from '../components/ui.jsx';
 import TransferForm from '../components/TransferForm.jsx';
+import { waLink } from '../whatsapp.js';
 
 export default function Transfers() {
   const { t } = useTranslation();
-  const { lang, money, addToCart, promoCode, currency } = useApp();
+  const { lang, money, addToCart, promoCode, currency, settings } = useApp();
   const { slug } = useParams();
   const nav = useNavigate();
   const [initial] = useState(() => { try { return JSON.parse(sessionStorage.getItem('transferSearch')); } catch { return null; } });
@@ -48,6 +49,14 @@ export default function Transfers() {
     nav(path(lang, 'cart'));
   }
 
+  // Véhicule « sur demande » (ex. VIP) : demande de devis par WhatsApp, sinon page contact
+  function quoteRequest(q) {
+    const f = search || {};
+    const n = (+f.adult || 0) + (+f.child || 0) + (+f.infant || 0);
+    const text = t('transfer.quoteMsg', { vehicle: q.label, from: f.from?.name || '', to: f.to?.name || '', date: (f.datetime || '').replace('T', ' '), n });
+    return waLink(settings?.contact?.whatsapp, text);
+  }
+
   return (
     <>
       <Seo title={landing?.seo?.metaTitle || landing?.title || t('transfer.title')} description={landing?.seo?.metaDescription || t('transfer.subtitle')}
@@ -66,15 +75,26 @@ export default function Transfers() {
               <article key={q.vehicle} className="card vehicle">
                 <div style={{ flex: '1 1 260px' }}>
                   <h3>{q.label}</h3>
-                  <p className="muted">{t('transfer.upTo', { p: q.maxPassengers, l: q.maxLuggage })}</p>
+                  <p className="muted">{t('transfer.range', { min: q.minPassengers || 1, max: q.maxPassengers, l: q.maxLuggage })}</p>
                   {q.night && <span className="tag">{t('transfer.night')}</span>}
                 </div>
-                <details style={{ flex: '1 1 220px' }}><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>{t('price.details')}</summary><PriceLines lines={q.lines} /></details>
-                <div style={{ textAlign: 'right' }}>
-                  <div className="price">{money(q.totalEur, 2)}</div>
-                  <small className="muted">{t('price.payOnSite')}</small>
-                </div>
-                <button className="btn btn--primary" onClick={() => choose(q)}>{t('transfer.choose')}</button>
+                {q.onRequest ? (
+                  <>
+                    <div style={{ marginLeft: 'auto', textAlign: 'right' }}><div className="price">{t('transfer.onRequest')}</div><small className="muted">{t('transfer.onRequestHint')}</small></div>
+                    {quoteRequest(q)
+                      ? <a className="btn btn--outline" href={quoteRequest(q)} target="_blank" rel="noopener noreferrer">{t('transfer.askQuote')}</a>
+                      : <a className="btn btn--outline" href={path(lang, 'contact')}>{t('transfer.askQuote')}</a>}
+                  </>
+                ) : (
+                  <>
+                    <details style={{ flex: '1 1 220px' }}><summary style={{ cursor: 'pointer', minHeight: 44, display: 'flex', alignItems: 'center' }}>{t('price.details')}</summary><PriceLines lines={q.lines} /></details>
+                    <div style={{ textAlign: 'right' }}>
+                      <div className="price">{money(q.totalEur, 2)}<small className="ttc"> {t('price.ttc')}</small></div>
+                      <small className="muted">{t('price.payOnSite')}</small>
+                    </div>
+                    <button className="btn btn--primary" onClick={() => choose(q)}>{t('transfer.choose')}</button>
+                  </>
+                )}
               </article>
             ))}
           </div>

@@ -118,10 +118,10 @@ const PLACES = [
 ];
 
 const VEHICLES = [
-  { key: 'sedan', label: L('Sedan', 'Berline', 'Limousine', 'Berlina', 'Berlina'), maxPassengers: 3, maxLuggage: 3, perKm: 0.9, minFare: 30 },
-  { key: 'minivan', label: L('Minivan', 'Minivan', 'Minivan', 'Minivan', 'Monovolumen'), maxPassengers: 7, maxLuggage: 7, perKm: 1.2, minFare: 40 },
-  { key: 'minibus', label: L('Minibus', 'Minibus', 'Kleinbus', 'Minibus', 'Microbús'), maxPassengers: 16, maxLuggage: 16, perKm: 1.8, minFare: 70 },
-  { key: 'vip', label: L('VIP vehicle', 'Véhicule VIP', 'VIP-Fahrzeug', 'Veicolo VIP', 'Vehículo VIP'), maxPassengers: 3, maxLuggage: 3, perKm: 1.6, minFare: 60 },
+  { key: 'sedan', label: L('Sedan', 'Berline', 'Limousine', 'Berlina', 'Berlina'), minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 0.9, minFare: 30 },
+  { key: 'minivan', label: L('Minivan', 'Minivan', 'Minivan', 'Minivan', 'Monovolumen'), minPassengers: 5, maxPassengers: 8, maxLuggage: 8, perKm: 1.2, minFare: 40 },
+  { key: 'minibus', label: L('Minibus', 'Minibus', 'Kleinbus', 'Minibus', 'Microbús'), minPassengers: 9, maxPassengers: 20, maxLuggage: 20, perKm: 1.8, minFare: 70 },
+  { key: 'vip', label: L('VIP vehicle', 'Véhicule VIP', 'VIP-Fahrzeug', 'Veicolo VIP', 'Vehículo VIP'), minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1.6, minFare: 60, onRequest: true },
 ];
 
 const ROUTE_ENFIDHA_SOUSSE = {
@@ -344,7 +344,7 @@ export async function runSeed({ reset = false, create = true, log = console.log 
         holidays: [], blocked: [],
       },
       earlyBooking: { daysBefore: 30, percent: 5 },
-      fx: { mode: 'auto', GBP: 0.85, TND: 3.4 },
+      fx: { mode: 'auto', USD: 1.08, GBP: 0.85, TND: 3.4 },
       contact: { phone: '[TÉLÉPHONE]', whatsapp: '[NUMÉRO WHATSAPP]', email: '[E-MAIL]', address: '[ADRESSE]' },
       social: { tripadvisor: '', facebook: '', instagram: '', tiktok: '', googleReviews: '' },
       cancellationHours: 24,
@@ -389,6 +389,11 @@ export async function runSeed({ reset = false, create = true, log = console.log 
       const src = VEHICLES.find((x) => x.key === v.key);
       if (!src) return v;
       const [label, c] = fillL(v.label, src.label); if (c) changed = true;
+      // Règle des tranches de passagers (berline 1–4, VIP 1–4 sur demande, minivan 5–8, minibus 9+) : appliquée une seule fois
+      if (v.minPassengers == null) {
+        changed = true;
+        return { ...v, label, minPassengers: src.minPassengers, maxPassengers: src.maxPassengers, maxLuggage: src.maxLuggage, onRequest: !!src.onRequest };
+      }
       return { ...v, label };
     });
     if (changed) await TransferConfig.updateOne({ _id: cfg._id }, { $set: { vehicles } });

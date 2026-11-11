@@ -261,8 +261,11 @@ export function computeTransferQuotes({ grid = [], vehicles = [], supplements = 
   };
 
   return vehicles
-    .filter((v) => v.maxPassengers >= pax && v.maxLuggage >= luggage)
+    // Chaque véhicule couvre une tranche de passagers (ex. berline 1–4, minivan 5–8, minibus 9 et plus)
+    .filter((v) => pax >= (v.minPassengers || 1) && v.maxPassengers >= pax && (v.maxLuggage == null || v.maxLuggage >= luggage))
     .map((v) => {
+      // Véhicule « sur demande » (ex. VIP) : proposé sans prix, le client demande un devis
+      if (v.onRequest) return { vehicle: v.key, label: v.label, minPassengers: v.minPassengers || 1, maxPassengers: v.maxPassengers, maxLuggage: v.maxLuggage, onRequest: true, lines: [], totalEur: null, total: null, night: isNight(hour) };
       const basePrice = findPrice(v);
       if (basePrice == null) return null;
       const lines = [{ key: 'route', amount: basePrice }];
@@ -290,10 +293,11 @@ export function computeTransferQuotes({ grid = [], vehicles = [], supplements = 
       const da = round2(total * (d.rate || 0));
       if (da) { lines.push({ key: 'discount', source: d.source, amount: -da }); total -= da; }
       const totalEur = round2(total);
-      return { vehicle: v.key, label: v.label, maxPassengers: v.maxPassengers, maxLuggage: v.maxLuggage, lines, totalEur, total: round2(totalEur * fx), night: isNight(hour) };
+      return { vehicle: v.key, label: v.label, minPassengers: v.minPassengers || 1, maxPassengers: v.maxPassengers, maxLuggage: v.maxLuggage, lines, totalEur, total: round2(totalEur * fx), night: isNight(hour) };
     })
     .filter(Boolean)
-    .sort((a, b) => a.totalEur - b.totalEur);
+    // Prix croissants ; les véhicules « sur demande » en dernier
+    .sort((a, b) => (!!a.onRequest - !!b.onRequest) || ((a.totalEur ?? 0) - (b.totalEur ?? 0)));
 }
 
 /* ------------------------------------------------------------------ */

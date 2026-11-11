@@ -42,7 +42,7 @@ export default function BookingView() {
           ))}
         </div>
         <aside className="card stack">
-          <div className="row" style={{ justifyContent: 'space-between' }}><strong>{t('price.total')}</strong><strong className="price">{money(b.totalEur, 2)}</strong></div>
+          <div className="row" style={{ justifyContent: 'space-between' }}><strong>{t('price.total')}</strong><strong className="price">{money(b.totalEur, 2)}<small className="ttc"> {t('price.ttc')}</small></strong></div>
           <small className="muted">{t('price.payOnSite')}</small>
           {b.status !== 'cancelled' && <>
             <a className="btn btn--green" href={`${base}/voucher.pdf?token=${token}`} target="_blank" rel="noopener noreferrer">{t('confirm.voucher')}</a>

@@ -14,6 +14,10 @@ const CHECK_LABELS = {
   h1DiffersFromTitle: 'H1 différent du titre SEO', textLength: 'Texte de 300 mots minimum', internalLinks: 'Liens internes présents',
 };
 const EMPTY_L = () => Object.fromEntries(LANGS.map((l) => [l, '']));
+/** Extras proposés en un clic (prix à compléter) */
+const EXTRA_PRESETS = { guide: { fr: 'Guide accompagnateur', per: 'booking' }, dejeuner: { fr: 'Déjeuner', per: 'person' } };
+/** Code interne unique d'un extra, déduit de son nom */
+const uniqueKey = (base, list, self) => { let k = base || 'extra'; let n = 2; while (list.some((o, j) => j !== self && o.key === k)) k = `${base}-${n++}`; return k; };
 
 /* ======================= Liste ======================= */
 export function ExcursionList() {
@@ -257,7 +261,6 @@ function InfoTab({ e, set }) {
         </div>
         {e.video && <p>Vidéo : {e.video} <RemoveButton what="la vidéo" className="link-btn" label="retirer" onConfirm={() => set('video', '')} /></p>}
       </div>
-      <label className="lbl">Carte Google Maps du point de rendez-vous (facultatif — le trajet se règle dans l’onglet « Carte et trajet »)<input className="inp" value={e.mapEmbed || ''} onChange={(ev) => set('mapEmbed', ev.target.value)} /></label>
     </div>
   );
 }
@@ -427,17 +430,32 @@ function PricingTab({ e, set, id }) {
         <button type="button" className="link-btn" onClick={() => set(P('guideLanguages'), [...(pr.guideLanguages || []), { lang: 'de', fee: 0 }])}>+ Langue</button>
       </fieldset>
 
-      <fieldset className="panel stack"><legend><strong>Options</strong></legend>
-        {(pr.options || []).map((o, i) => (
-          <div key={i} className="row">
-            <input className="inp" placeholder="code (ex. dejeuner)" value={o.key} onChange={(ev) => set(P(`options.${i}.key`), ev.target.value)} style={{ width: 140 }} />
-            <input className="inp" placeholder="Nom de l’option (français)" value={o.label?.fr || ''} onChange={(ev) => set(P(`options.${i}.label.fr`), ev.target.value)} style={{ flex: '2 1 200px' }} />
-            <input className="inp" type="number" placeholder="€" value={o.price ?? ''} onChange={(ev) => set(P(`options.${i}.price`), +ev.target.value)} style={{ width: 100 }} />
-            <select className="inp" value={o.per || 'person'} onChange={(ev) => set(P(`options.${i}.per`), ev.target.value)}><option value="person">par personne</option><option value="vehicle">par véhicule</option><option value="booking">par réservation</option></select>
-            <RemoveButton what="cette option" onConfirm={() => set(P('options'), pr.options.filter((_, k) => k !== i))} />
-          </div>
-        ))}
-        <button type="button" className="link-btn" onClick={() => set(P('options'), [...(pr.options || []), { key: '', label: EMPTY_L(), price: 0, per: 'person' }])}>+ Option</button>
+      <fieldset className="panel stack"><legend><strong>Extras payants</strong></legend>
+        <p className="help" style={{ margin: 0 }}>Services que le client peut ajouter en réservant (guide, déjeuner, photos, quad…). Le prix s’ajoute au total. Nom et description en français, traduits automatiquement.</p>
+        <div className="extras-admin">
+          {(pr.options || []).map((o, i) => (
+            <div key={i} className="extra-card">
+              <div className="extra-card__head">
+                <input className="inp" placeholder="Nom de l’extra (ex. Déjeuner traditionnel)" value={o.label?.fr || ''} aria-label="Nom de l’extra"
+                  onChange={(ev) => set(P(`options.${i}.label.fr`), ev.target.value)}
+                  onBlur={(ev) => { if (!o.key && ev.target.value) set(P(`options.${i}.key`), uniqueKey(slugify(ev.target.value), pr.options, i)); }} />
+                <RemoveButton what="cet extra" onConfirm={() => set(P('options'), pr.options.filter((_, k) => k !== i))} />
+              </div>
+              <input className="inp" placeholder="Description courte (facultatif)" value={o.description?.fr || ''} aria-label="Description de l’extra" onChange={(ev) => set(P(`options.${i}.description.fr`), ev.target.value)} />
+              <div className="row" style={{ flexWrap: 'nowrap' }}>
+                <span className="money-inp money-inp--wide" style={{ flex: '0 0 130px' }}><input type="number" min="0" step="0.5" placeholder="Prix" value={o.price ?? ''} aria-label="Prix TTC en euros" onChange={(ev) => set(P(`options.${i}.price`), ev.target.value === '' ? 0 : +ev.target.value)} /><i>€ TTC</i></span>
+                <select className="inp" style={{ flex: 1, minWidth: 0 }} value={o.per || 'person'} aria-label="Prix compté" onChange={(ev) => set(P(`options.${i}.per`), ev.target.value)}><option value="person">par personne</option><option value="vehicle">par véhicule</option><option value="booking">par réservation</option></select>
+              </div>
+              {!o.price && <small style={{ color: '#9B1C1C' }}>Prix à 0 € : l’extra apparaîtra gratuit.</small>}
+            </div>
+          ))}
+        </div>
+        <div className="row">
+          <button type="button" className="btn btn--outline btn-sm" onClick={() => set(P('options'), [...(pr.options || []), { key: '', label: EMPTY_L(), description: EMPTY_L(), price: 0, per: 'person' }])}>+ Ajouter un extra</button>
+          {Object.entries(EXTRA_PRESETS).filter(([k]) => !(pr.options || []).some((o) => o.key === k)).map(([k, x]) => (
+            <button key={k} type="button" className="btn btn--outline btn-sm" onClick={() => set(P('options'), [...(pr.options || []), { key: k, label: { ...EMPTY_L(), fr: x.fr }, description: EMPTY_L(), price: 0, per: x.per }])}>+ {x.fr}</button>
+          ))}
+        </div>
       </fieldset>
 
       {pr.mode !== 'quote' && (

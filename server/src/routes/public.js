@@ -44,7 +44,7 @@ function localize(e, l, full = false) {
     cancellationFreeHours: e.cancellationFreeHours,
     availability: { mode: e.availability?.mode, confirmWithinHours: e.availability?.confirmWithinHours },
     // Règles de prix publiques : le navigateur calcule l'affichage instantané, le serveur recalcule à la réservation.
-    pricing: { ...e.pricing, options: (e.pricing?.options || []).map((o) => ({ ...o, label: pick(o.label, l) })) },
+    pricing: { ...e.pricing, options: (e.pricing?.options || []).filter((o) => o.key && pick(o.label, l)).map((o) => ({ ...o, label: pick(o.label, l), description: pick(o.description, l) })) },
     seo: e.seo?.[l] || {},
   };
 }
@@ -55,7 +55,7 @@ r.get('/settings', async (req, res) => {
   const l = lang(req);
   res.json({
     calendar: s.calendar, contact: s.contact, social: s.social, reviews: s.reviews,
-    cancellationHours: s.cancellationHours, fx: { EUR: 1, GBP: s.fx?.GBP, TND: s.fx?.TND },
+    cancellationHours: s.cancellationHours, fx: { EUR: 1, USD: s.fx?.USD, GBP: s.fx?.GBP, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
     home: {
@@ -126,7 +126,7 @@ const quoteSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   participants: z.object({ adult: z.number().int().min(0).max(50), child: z.number().int().min(0).max(50).default(0), infant: z.number().int().min(0).max(50).default(0) }),
   zone: z.string().optional(), guideLang: z.string().optional(), options: z.array(z.string()).default([]),
-  promoCode: z.string().optional(), partnerCode: z.string().optional(), currency: z.enum(['EUR', 'GBP', 'TND']).default('EUR'),
+  promoCode: z.string().optional(), partnerCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
 });
 
 /** Devis serveur (le même calcul que le navigateur, avec code promo et disponibilité) */
@@ -176,7 +176,7 @@ const transferSchema = z.object({
   passengers: z.object({ adult: z.number().int().min(1), child: z.number().int().min(0).default(0), infant: z.number().int().min(0).default(0) }),
   luggage: z.number().int().min(0).default(0), childSeats: z.number().int().min(0).default(0), nameSign: z.boolean().default(false), extraStops: z.number().int().min(0).default(0),
   roundTrip: z.boolean().default(false), returnDatetime: z.string().optional(),
-  promoCode: z.string().optional(), currency: z.enum(['EUR', 'GBP', 'TND']).default('EUR'),
+  promoCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
 });
 
 r.post('/transfers/quote', async (req, res) => {
@@ -206,7 +206,7 @@ const bookingSchema = z.object({
   items: z.array(itemSchema).min(1).max(10),
   customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
   promoCode: z.string().optional(), partnerCode: z.string().optional(),
-  currency: z.enum(['EUR', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
+  currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
   consent: z.object({ terms: z.boolean(), cancellation: z.literal(true) }),
   captchaToken: z.string().optional(), website: z.string().optional(),
 });
@@ -253,9 +253,7 @@ r.post('/bookings/:ref/cancel', async (req, res) => {
 r.get('/bookings/:ref/voucher.pdf', async (req, res) => {
   const b = await customerBooking(req);
   const s = await getSettings();
-  const ids = b.items.map((i) => i.driver).filter(Boolean);
-  const drivers = Object.fromEntries((await User.find({ _id: { $in: ids } }).lean()).map((d) => [String(d._id), d]));
-  const pdf = await voucherPdf(b, { contact: s.contact, drivers });
+  const pdf = await voucherPdf(b, { contact: s.contact });
   res.type('application/pdf').set('Content-Disposition', `inline; filename="${b.ref}.pdf"`).send(pdf);
 });
 

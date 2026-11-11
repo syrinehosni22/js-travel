@@ -10,7 +10,7 @@ import { t } from './i18n.js';
 import { pdfText } from './text.js';
 
 /** Bon PDF (réservation ou transfert) envoyé au client — §4.4 et §5.3. Renvoie un Buffer. */
-export function voucherPdf(booking, { contact = {}, drivers = {} } = {}) {
+export function voucherPdf(booking, { contact = {} } = {}) {
   const lang = booking.lang || 'en';
   const doc = new PDFDocument({ size: 'A4', margin: 50 });
   // Les polices intégrées du PDF ne savent pas afficher tous les caractères (flèches, caractères invisibles…)
@@ -45,18 +45,18 @@ export function voucherPdf(booking, { contact = {}, drivers = {} } = {}) {
     doc.text(`${t(lang, 'date')} : ${it.date}${it.time ? ' · ' + it.time : ''}`);
     const n = (k, one, many) => `${k} ${t(lang, k === 1 ? one : many)}`;
     doc.text(`${t(lang, 'people')} : ${n(p.adult || 0, 'adult', 'adults')}${p.child ? `, ${n(p.child, 'child', 'children')}` : ''}${p.infant ? `, ${n(p.infant, 'infant', 'infants')}` : ''}`);
+    const extras = (it.lines || []).filter((l) => l.key === 'option');
+    if (extras.length) doc.text(`${t(lang, 'extras')} : ${extras.map((l) => `${l.label}${l.qty > 1 ? ` × ${l.qty}` : ''}`).join(', ')}`);
     if (it.type === 'transfer' && it.transfer) {
       doc.text(`${t(lang, 'pickup')} : ${it.transfer.from}${it.transfer.flightNumber ? ` · ${t(lang, 'flight')} ${it.transfer.flightNumber}` : ''}`);
       doc.text(`${t(lang, 'dropoff')} : ${it.transfer.to}`);
     } else if (it.zone) doc.text(`${t(lang, 'pickup')} : ${it.zone}`);
-    const d = it.driver && drivers[String(it.driver)];
-    if (d) doc.text(`${t(lang, 'driver')} : ${d.name} · ${d.phone || ''}`);
     doc.text(formatMoney(it.totalEur, 'EUR', lang));
     doc.moveDown();
   }
 
   doc.moveDown();
-  doc.fontSize(16).fillColor(green).text(`${t(lang, 'total')} : ${formatMoney(booking.totalEur, 'EUR', lang)}`);
+  doc.fontSize(16).fillColor(green).text(`${t(lang, 'total')} : ${formatMoney(booking.totalEur, 'EUR', lang)} ${t(lang, 'ttc')}`);
   if (booking.currency !== 'EUR') doc.fontSize(11).fillColor('#4B5B54').text(`≈ ${formatMoney(booking.totalDisplay, booking.currency, lang)}`);
   doc.fontSize(11).fillColor('#4B5B54').text(t(lang, 'payOnSite'));
   doc.moveDown(2);

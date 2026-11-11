@@ -12,11 +12,13 @@ const TYPES = { airport: 'Aéroport', city: 'Ville', hotel: 'Hôtel' };
 const DEFAULT_FACTORS = { sedan: 1, minivan: 1.4, minibus: 2.4, vip: 1.8 };
 /** Types de véhicules proposés par défaut (capacités modifiables dans l'onglet « Véhicules ») */
 const STANDARD_VEHICLES = [
-  { key: 'sedan', label: { fr: 'Berline' }, maxPassengers: 3, maxLuggage: 3, perKm: 0.9, minFare: 30 },
-  { key: 'minivan', label: { fr: 'Minivan' }, maxPassengers: 7, maxLuggage: 7, perKm: 1.2, minFare: 40 },
-  { key: 'minibus', label: { fr: 'Minibus' }, maxPassengers: 16, maxLuggage: 16, perKm: 1.8, minFare: 70 },
-  { key: 'vip', label: { fr: 'Véhicule VIP' }, maxPassengers: 3, maxLuggage: 3, perKm: 1.6, minFare: 60 },
+  { key: 'sedan', label: { fr: 'Berline' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 0.9, minFare: 30 },
+  { key: 'vip', label: { fr: 'Véhicule VIP' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1.6, minFare: 60, onRequest: true },
+  { key: 'minivan', label: { fr: 'Minivan' }, minPassengers: 5, maxPassengers: 8, maxLuggage: 8, perKm: 1.2, minFare: 40 },
+  { key: 'minibus', label: { fr: 'Minibus' }, minPassengers: 9, maxPassengers: 20, maxLuggage: 20, perKm: 1.8, minFare: 70 },
 ];
+/** « 1–4 pers. · 4 valises · sur demande » */
+const cap = (v) => `${v.minPassengers || 1}–${v.maxPassengers} pers. · ${v.maxLuggage} valises${v.onRequest ? ' · sur demande' : ''}`;
 const key = (a, b) => `${a}|${b}`;
 const sameRoute = (g, a, b) => (g.fromZone === a && g.toZone === b) || (g.fromZone === b && g.toZone === a);
 
@@ -154,7 +156,7 @@ function Prices({ cfg, update, zones, zl }) {
           <div className="vehicle-prices">
             {vehicles.map((v) => (
               <label key={v.key} className="vehicle-price">
-                <span className="vehicle-price__name">{v.label?.fr || v.key}<small>{v.maxPassengers} pers. · {v.maxLuggage} valises</small></span>
+                <span className="vehicle-price__name">{v.label?.fr || v.key}<small>{cap(v)}</small></span>
                 <span className="money-inp"><input type="number" min="0" step="1" inputMode="decimal" placeholder="—" value={add.prices[v.key] ?? ''} onChange={(e) => setAddPrice(v.key, e.target.value)} aria-label={`Prix ${v.label?.fr || v.key}`} /><i>€</i></span>
               </label>
             ))}
@@ -180,7 +182,7 @@ function Prices({ cfg, update, zones, zl }) {
               <button type="button" className="icon-btn" onClick={() => remove(r)} aria-label={`Supprimer le trajet ${r.name}`}>×</button></header>
             {vehicles.map((v) => (
               <label key={v.key} className="route-price">
-                <span>{v.label?.fr || v.key}<small>{v.maxPassengers} pers. · {v.maxLuggage} valises</small></span>
+                <span>{v.label?.fr || v.key}<small>{cap(v)}</small></span>
                 <span className="money-inp"><input type="number" min="0" inputMode="decimal" value={price(r, v.key)} placeholder="—" onChange={(e) => setPrice(r, v.key, e.target.value)} aria-label={`${r.name} — ${v.label?.fr || v.key}`} /><i>€</i></span>
               </label>
             ))}
@@ -199,7 +201,7 @@ function Vehicles({ cfg, update, set }) {
   const missing = STANDARD_VEHICLES.filter((x) => !vehicles.some((v) => v.key === x.key || (v.label?.fr || '').toLowerCase() === x.label.fr.toLowerCase()));
   function addStandard() { update({ ...cfg, vehicles: [...vehicles, ...missing.map((x) => ({ ...x, label: { ...x.label } }))] }); }
   function addVehicle() {
-    update({ ...cfg, vehicles: [...vehicles, { key: `vehicule-${vehicles.length + 1}`, label: { fr: 'Nouveau véhicule' }, maxPassengers: 4, maxLuggage: 4, perKm: 1, minFare: 30 }] });
+    update({ ...cfg, vehicles: [...vehicles, { key: `vehicule-${vehicles.length + 1}`, label: { fr: 'Nouveau véhicule' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1, minFare: 30 }] });
   }
   async function removeVehicle(i) {
     const v = vehicles[i];
@@ -209,7 +211,7 @@ function Vehicles({ cfg, update, set }) {
   }
   return (
     <div className="stack">
-      <p className="help">Le nom est saisi en français et traduit automatiquement. L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
+      <p className="help">Le nom est saisi en français et traduit automatiquement. <b>Passagers min et max</b> : le client ne voit que les véhicules adaptés à son groupe (ex. berline 1–4, minivan 5–8, minibus 9 et plus). L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
       {missing.length > 0 && (
         <div className="alert alert--info row" style={{ justifyContent: 'space-between' }}>
           <span>Véhicules standard absents : {missing.map((x) => x.label.fr).join(', ')}.</span>
@@ -222,11 +224,13 @@ function Vehicles({ cfg, update, set }) {
             <header><strong>{v.label?.fr || 'Véhicule'}</strong><button type="button" className="icon-btn" onClick={() => removeVehicle(i)} aria-label="Supprimer le véhicule">×</button></header>
             <label className="lbl">Nom (français)<input className="inp" value={v.label?.fr || ''} onChange={(e) => set(`vehicles.${i}.label.fr`, e.target.value)} onBlur={(e) => { if (/^vehicule-\d+$/.test(v.key) && e.target.value) set(`vehicles.${i}.key`, slugify(e.target.value)); }} /></label>
             <div className="grid-2 grid-2--tight">
+              <label className="lbl">Passagers min<input className="inp" type="number" min="1" value={v.minPassengers ?? 1} onChange={(e) => set(`vehicles.${i}.minPassengers`, +e.target.value)} /></label>
               <label className="lbl">Passagers max<input className="inp" type="number" min="1" value={v.maxPassengers ?? ''} onChange={(e) => set(`vehicles.${i}.maxPassengers`, +e.target.value)} /></label>
               <label className="lbl">Valises max<input className="inp" type="number" min="0" value={v.maxLuggage ?? ''} onChange={(e) => set(`vehicles.${i}.maxLuggage`, +e.target.value)} /></label>
               <label className="lbl">Prix au km (€)<input className="inp" type="number" step="0.1" min="0" value={v.perKm ?? ''} onChange={(e) => set(`vehicles.${i}.perKm`, +e.target.value)} /></label>
               <label className="lbl">Course minimum (€)<input className="inp" type="number" min="0" value={v.minFare ?? ''} onChange={(e) => set(`vehicles.${i}.minFare`, +e.target.value)} /></label>
             </div>
+            <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={!!v.onRequest} onChange={(e) => set(`vehicles.${i}.onRequest`, e.target.checked)} />Sur demande (le client demande un devis, aucun prix affiché)</label>
           </article>
         ))}
         <button type="button" className="route-card route-card--add" onClick={addVehicle}>+ Ajouter un véhicule</button>
