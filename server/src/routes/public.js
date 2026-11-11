@@ -35,6 +35,10 @@ function localize(e, l, full = false) {
     program: (e.program || []).map((p) => ({ time: p.time, text: pick(p.text, l) })),
     faq: (e.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     images: (e.images || []).map((i) => ({ url: i.url, alt: pick(i.alt, l) })),
+    itinerary: e.itinerary?.enabled !== false && (e.itinerary?.stops || []).filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng)).length >= 2 ? {
+      stops: e.itinerary.stops.filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng)).map((x) => ({ name: pick(x.name, l), note: pick(x.note, l), lat: x.lat, lng: x.lng })),
+      path: e.itinerary.path?.length > 1 ? e.itinerary.path : null,
+    } : null,
     video: e.video, mapEmbed: e.mapEmbed, minAge: e.minAge, groupSize: e.groupSize, startTimes: e.startTimes,
     cancellationFreeHours: e.cancellationFreeHours,
     availability: { mode: e.availability?.mode, confirmWithinHours: e.availability?.confirmWithinHours },

@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import helmet from 'helmet';
 import cors from 'cors';
 import morgan from 'morgan';
+import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { config } from './config.js';
@@ -45,7 +46,10 @@ async function main() {
   refreshRates();
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// Démarrage direct (node src/index.js) ou via PM2, qui lance le fichier à travers son propre script
+const thisFile = fileURLToPath(import.meta.url);
+const launchedAs = [process.argv[1], process.env.pm_exec_path].filter(Boolean).map((p) => path.resolve(p));
+if (launchedAs.includes(thisFile)) {
   main().catch((e) => {
     console.error(e);
     if (/ECONNREFUSED|Server selection timed out/i.test(String(e?.message))) {

@@ -18,6 +18,11 @@ export function parseVideo(url) {
   return null;
 }
 
+const ICONS = {
+  compass: <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="m15.5 8.5-2 5-5 2 2-5z" /></svg>,
+  car: <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M5 16V11l2-5h10l2 5v5" /><path d="M3 16h18v3H3z" /><circle cx="7.5" cy="16" r="1.5" /><circle cx="16.5" cy="16" r="1.5" /><path d="M5 11h14" /></svg>,
+};
+
 /** Rubrique « Notre entreprise » de l'accueil — contenu modifiable dans Admin → Paramètres */
 export default function About() {
   const { t } = useTranslation();
@@ -31,6 +36,7 @@ export default function About() {
   const video = parseVideo(a?.video);
   const poster = a?.image || video?.poster;
   const stats = a?.stats || [];
+  const services = t('about.services', { returnObjects: true });
 
   return (
     <section className="section about" aria-labelledby="about-title">
@@ -55,6 +61,20 @@ export default function About() {
           <span className="eyebrow">{t('about.eyebrow')}</span>
           <h2 id="about-title" className="section__title">{title}</h2>
           {text.split(/\n\s*\n|\n/).filter((p) => p.trim()).map((p, i) => <p key={i}>{p}</p>)}
+          {Array.isArray(services) && (
+            <ul className="about__services">
+              {services.map((x) => (
+                <li key={x.key}>
+                  <span className="about__icon" aria-hidden="true">{x.key === 'transfers' ? ICONS.car : ICONS.compass}</span>
+                  <div>
+                    <h3>{x.title}</h3>
+                    <p>{x.text}</p>
+                    <Link to={path(lang, x.key)}>{x.link} →</Link>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
           {stats.length > 0 && (
             <dl className="about__stats">
               {stats.slice(0, 4).map((s, i) => <div key={i}><dt>{s.label}</dt><dd>{s.value}</dd></div>)}

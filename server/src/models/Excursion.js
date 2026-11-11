@@ -48,6 +48,12 @@ const ExcursionSchema = new mongoose.Schema({
   images: [{ _id: false, url: String, alt: L() }],
   video: String,
   mapEmbed: String,
+  /** Trajet affiché sur la carte de la fiche : étapes dans l'ordre + tracé routier facultatif */
+  itinerary: {
+    enabled: { type: Boolean, default: true },
+    stops: [{ _id: false, name: L(), note: L(), lat: Number, lng: Number }],
+    path: { type: [[Number]], default: undefined },   // [[lat, lng], …] calculé dans l'admin ; vide = lignes droites
+  },
   startTimes: [String],
   pricing: { type: PricingSchema, default: () => ({}) },
   availability: {

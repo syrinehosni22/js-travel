@@ -1,6 +1,8 @@
 import { Link } from 'react-router-dom';
 import { adminApi } from '../api.js';
 import { useLoad, Top, eur, Status, Err } from './shared.jsx';
+import { useAdmin } from './AdminApp.jsx';
+import SeoSummary from './SeoSummary.jsx';
 
 function DayList({ title, list }) {
   return (
@@ -19,6 +21,7 @@ function DayList({ title, list }) {
 
 export default function Dashboard() {
   const { data, error } = useLoad(() => adminApi.get('/dashboard'));
+  const { user } = useAdmin();
   if (error) return <Err error={error} />;
   if (!data) return <p>Chargement…</p>;
   const r = data.revenueMonth;
@@ -46,6 +49,7 @@ export default function Dashboard() {
         <DayList title="Aujourd'hui" list={data.today} />
         <DayList title="Demain" list={data.tomorrow} />
       </div>
+      {['admin', 'manager', 'editor'].includes(user?.role) && <div style={{ marginTop: 16 }}><SeoSummary compact /></div>}
     </>
   );
 }

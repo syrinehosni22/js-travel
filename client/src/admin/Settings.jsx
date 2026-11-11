@@ -132,7 +132,7 @@ function AboutPanel({ s, set, lang, setLang }) {
       <p className="help" style={{ margin: 0 }}>Écrivez en français : les autres langues sont traduites automatiquement à l’enregistrement. Laissez vide pour garder le texte par défaut.</p>
       <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={a.enabled !== false} onChange={(e) => set('about.enabled', e.target.checked)} />Afficher cette rubrique sur l’accueil</label>
       <Err error={err} />
-      <label className="lbl">Titre ({lang.toUpperCase()})<input className="inp" placeholder="Une agence locale à votre service en Tunisie" value={a.title?.[lang] || ''} onChange={(e) => set(`about.title.${lang}`, e.target.value)} /></label>
+      <label className="lbl">Titre ({lang.toUpperCase()})<input className="inp" placeholder="JS Travel Tunisia, votre agence de tourisme en Tunisie" value={a.title?.[lang] || ''} onChange={(e) => set(`about.title.${lang}`, e.target.value)} /></label>
       <label className="lbl">Texte de présentation ({lang.toUpperCase()})<textarea className="inp" rows={5} placeholder="Qui êtes-vous, depuis quand, ce qui vous distingue… Une ligne vide = nouveau paragraphe." value={a.text?.[lang] || ''} onChange={(e) => set(`about.text.${lang}`, e.target.value)} /></label>
       <div className="grid-2">
         <div className="stack" style={{ gap: 8 }}>

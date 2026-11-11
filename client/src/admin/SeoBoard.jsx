@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { adminApi } from '../api.js';
 import { useLoad, Top, Err, LANGS } from './shared.jsx';
+import SeoSummary from './SeoSummary.jsx';
 
 /**
  * Tableau SEO : score et champs manquants de chaque fiche par langue (§8.2).
@@ -11,7 +12,9 @@ export default function SeoBoard() {
   const { data, error } = useLoad(() => adminApi.get('/seo'));
   return (
     <>
-      <Top title="SEO"><a className="btn btn--outline btn-sm" href="/sitemap.xml" target="_blank" rel="noreferrer">Voir le sitemap</a></Top>
+      <Top title="SEO" />
+      <SeoSummary />
+      <h2 style={{ fontSize: 18, margin: '20px 0 10px' }}>Score par fiche et par langue</h2>
       <Err error={error} />
       <div className="panel tbl-wrap">
         <table className="tbl">
