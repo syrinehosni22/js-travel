@@ -58,6 +58,12 @@ r.get('/settings', async (req, res) => {
     cancellationHours: s.cancellationHours, fx: { EUR: 1, GBP: s.fx?.GBP, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
+    home: {
+      hero: { title: pick(s.home?.hero?.title, l), text: pick(s.home?.hero?.text, l), slides: (s.home?.hero?.slides || []).filter(Boolean) },
+      banner: { enabled: s.home?.banner?.enabled !== false, title: pick(s.home?.banner?.title, l), text: pick(s.home?.banner?.text, l), button: pick(s.home?.banner?.button, l), target: s.home?.banner?.target || 'transfers' },
+      destinationsTitle: pick(s.home?.destinationsTitle, l),
+      destinations: (s.home?.destinations || []).filter((d) => d.image && pick(d.name, l)).map((d) => ({ name: pick(d.name, l), image: d.image, category: d.category || '', q: d.q || '' })),
+    },
     about: s.about?.enabled === false ? { enabled: false } : {
       enabled: true,
       title: pick(s.about?.title, l), text: pick(s.about?.text, l),

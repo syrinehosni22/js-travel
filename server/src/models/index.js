@@ -65,6 +65,17 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   legal: { privacy: L(), cancellation: L(), terms: L() },
   emailTemplates: Object,   // surcharges par clé et par langue
   seoHome: { type: SeoByLang(), default: () => ({}) },
+  /** Contenu modifiable de la page d'accueil (vide = textes et photos par défaut du site) */
+  home: {
+    hero: { title: L(), text: L(), slides: [String] },          // photos : clé de la photothèque ou /uploads/…
+    banner: {
+      enabled: { type: Boolean, default: true },
+      title: L(), text: L(), button: L(),
+      target: { type: String, default: 'transfers' },             // transfers | excursions | custom | contact
+    },
+    destinationsTitle: L(),
+    destinations: [{ _id: false, name: L(), image: String, category: String, q: String }],
+  },
   /** Rubrique « Notre entreprise » de la page d'accueil */
   about: {
     enabled: { type: Boolean, default: true },

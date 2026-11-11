@@ -190,3 +190,22 @@ select.inp { text-overflow: ellipsis; }
   .stop-row__fields { grid-template-columns: 1fr; }
   .stop-row__actions { grid-column: 2; justify-content: flex-end; }
 }
+
+/* Page d'accueil (admin) */
+.home-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 12px; }
+.home-card { display: flex; flex-direction: column; gap: 10px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: #fff; min-width: 0; }
+.home-card header { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.home-card header strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.home-card header .row { flex-wrap: nowrap; flex: none; }
+.home-card--add { align-items: center; justify-content: center; min-height: 160px; border-style: dashed; color: var(--green); font-weight: 700; cursor: pointer; font: inherit; }
+.photo-picker { display: flex; flex-direction: column; gap: 8px; }
+.photo-picker__img { aspect-ratio: 16 / 10; border-radius: 10px; overflow: hidden; background: var(--bg-alt, #F6F1E7); display: grid; place-items: center; }
+.photo-picker__img img { width: 100%; height: 100%; object-fit: cover; }
+.photo-picker__lib { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; max-height: 240px; overflow: auto; padding: 6px; border: 1px solid var(--line); border-radius: 10px; }
+.photo-picker__lib button { padding: 0; border: 2px solid transparent; border-radius: 8px; overflow: hidden; aspect-ratio: 4 / 3; cursor: pointer; background: #eee; }
+.photo-picker__lib button.is-on { border-color: var(--green); }
+.photo-picker__lib img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.promo--preview { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; padding: 16px 20px; border-radius: 16px; background: #C9A227; color: #0B1529; }
+.promo--preview strong { display: block; font-size: 18px; }
+.promo--preview span { font-size: 14px; }
+.promo--preview .btn { background: #0B1529; color: #fff; pointer-events: none; }
