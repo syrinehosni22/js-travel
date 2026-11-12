@@ -1,4 +1,9 @@
-import 'dotenv/config';
+import dotenv from 'dotenv';
+import { fileURLToPath } from 'node:url';
+
+// Toujours lire server/.env, quel que soit le dossier depuis lequel on lance la commande (API, seed, import…)
+dotenv.config({ path: fileURLToPath(new URL('../.env', import.meta.url)) });
+dotenv.config();
 
 export const config = {
   port: +process.env.PORT || 4000,
