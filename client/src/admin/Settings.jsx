@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
 import { useLoad, Top, Err, useToast, setPath, getPath, LANGS, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
+import { SOCIAL_NAMES } from '../social.js';
 
 /** Paramètres : saisons, devises, contact, réseaux, politique d'annulation, FAQ, pages légales, 2FA */
 export default function SettingsAdmin() {
@@ -34,6 +35,8 @@ export default function SettingsAdmin() {
       <div className="stack">
         <AboutPanel s={s} set={set} lang={lang} setLang={setLang} />
 
+        <FollowPanel s={s} set={set} />
+
         <section className="panel stack">
           <h2 style={{ fontSize: 18 }}>Saisons (MM-JJ)</h2>
           {(s.calendar?.seasons || []).map((x, i) => (
@@ -65,12 +68,11 @@ export default function SettingsAdmin() {
         </section>
 
         <section className="panel stack">
-          <h2 style={{ fontSize: 18 }}>Coordonnées, réseaux et avis</h2>
+          <h2 style={{ fontSize: 18 }}>Coordonnées et avis</h2>
           <div className="grid-3">
             {inp('contact.phone', 'Téléphone')}{inp('contact.whatsapp', 'WhatsApp (format international)')}{inp('contact.viber', 'Viber')}
             {inp('contact.email', 'E-mail')}{inp('contact.address', 'Adresse')}{inp('contact.mapEmbed', 'Google Maps (URL d’intégration)')}
-            {inp('social.tripadvisor', 'Tripadvisor')}{inp('social.googleReviews', 'Lien « Laisser un avis » Google')}{inp('social.facebook', 'Facebook')}
-            {inp('social.instagram', 'Instagram')}{inp('social.tiktok', 'TikTok')}
+            {inp('social.tripadvisor', 'Tripadvisor (avis)')}{inp('social.googleReviews', 'Lien « Laisser un avis » Google')}
             {inp('reviews.rating', 'Note globale affichée', 'number')}{inp('reviews.count', 'Nombre d’avis', 'number')}
           </div>
         </section>
@@ -164,6 +166,44 @@ function AboutPanel({ s, set, lang, setLang }) {
         </div>
       ))}
       {stats.length < 4 && <button type="button" className="link-btn" onClick={() => set('about.stats', [...stats, { value: '', label: { fr: '' } }])}>+ Chiffre clé</button>}
+    </section>
+  );
+}
+
+/** « Suivez-nous » du pied de page : réseaux, liens et ordre */
+function FollowPanel({ s, set }) {
+  const so = s.social || {};
+  // Première ouverture : on reprend les anciens champs Facebook, Instagram, TikTok, Tripadvisor
+  const legacy = ['facebook', 'instagram', 'tiktok', 'tripadvisor'].filter((k) => so[k]).map((k) => ({ network: k, name: '', url: so[k] }));
+  const links = so.links?.length ? so.links : legacy;
+  const setLinks = (next) => set('social.links', next);
+  const bad = (u) => u && !/^https?:\/\//i.test(u);
+  const move = (i, d) => { const n = [...links]; [n[i], n[i + d]] = [n[i + d], n[i]]; setLinks(n); };
+  return (
+    <section className="panel stack">
+      <h2 style={{ fontSize: 18 }}>Suivez-nous (pied de page)</h2>
+      <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={so.showFollow !== false} onChange={(e) => set('social.showFollow', e.target.checked)} />Afficher la rubrique « Suivez-nous » en bas du site</label>
+      <p className="help" style={{ margin: 0 }}>Les liens s’affichent dans cet ordre. Collez l’adresse complète de la page (ex. https://www.facebook.com/jstravel). Un lien vide n’est pas affiché.</p>
+      <div className="stack" style={{ gap: 8 }}>
+        {links.map((x, i) => (
+          <div key={i} className="follow-row">
+            <select className="inp" value={x.network || 'other'} aria-label="Réseau" onChange={(e) => setLinks(links.map((y, k) => (k === i ? { ...y, network: e.target.value } : y)))}>
+              {Object.entries(SOCIAL_NAMES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+            </select>
+            {(x.network === 'other' || !x.network) && <input className="inp" placeholder="Nom affiché" value={x.name || ''} aria-label="Nom affiché" onChange={(e) => setLinks(links.map((y, k) => (k === i ? { ...y, name: e.target.value } : y)))} />}
+            <input className={`inp follow-row__url${bad(x.url) ? ' is-bad' : ''}`} placeholder="https://…" value={x.url || ''} aria-label="Adresse du lien" onChange={(e) => setLinks(links.map((y, k) => (k === i ? { ...y, url: e.target.value.trim() } : y)))}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v && !/^https?:\/\//i.test(v) && /^[\w.-]+\.[a-z]{2,}/i.test(v)) setLinks(links.map((y, k) => (k === i ? { ...y, url: `https://${v}` } : y))); }} />
+            <span className="row" style={{ gap: 4, flexWrap: 'nowrap' }}>
+              <button type="button" className="icon-btn" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Monter">↑</button>
+              <button type="button" className="icon-btn" disabled={i === links.length - 1} onClick={() => move(i, 1)} aria-label="Descendre">↓</button>
+              <RemoveButton what="ce lien" onConfirm={() => setLinks(links.filter((_, k) => k !== i))} />
+            </span>
+            {bad(x.url) && <small style={{ color: '#9B1C1C', gridColumn: '1 / -1' }}>L’adresse doit commencer par https://</small>}
+          </div>
+        ))}
+        {links.length === 0 && <p className="muted" style={{ margin: 0 }}>Aucun réseau : la rubrique est masquée.</p>}
+      </div>
+      <button type="button" className="link-btn" style={{ alignSelf: 'flex-start' }} onClick={() => setLinks([...links, { network: Object.keys(SOCIAL_NAMES).find((k) => k !== 'other' && !links.some((l) => l.network === k)) || 'other', name: '', url: '' }])}>+ Ajouter un réseau</button>
     </section>
   );
 }

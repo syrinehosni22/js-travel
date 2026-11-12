@@ -9,12 +9,13 @@ import { useLoad, Top, Err, useToast, setPath, useConfirm, TRANSLATION_WARNING }
  * Tout se saisit en français : les autres langues sont traduites automatiquement à l'enregistrement.
  */
 const TYPES = { airport: 'Aéroport', city: 'Ville', hotel: 'Hôtel' };
-const DEFAULT_FACTORS = { sedan: 1, minivan: 1.4, minibus: 2.4, vip: 1.8 };
+const DEFAULT_FACTORS = { sedan: 1, minivan: 1.4, van: 1.7, minibus: 2.4, vip: 1.8 };
 /** Types de véhicules proposés par défaut (capacités modifiables dans l'onglet « Véhicules ») */
 const STANDARD_VEHICLES = [
   { key: 'sedan', label: { fr: 'Berline' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 0.9, minFare: 30 },
   { key: 'vip', label: { fr: 'Véhicule VIP' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1.6, minFare: 60, onRequest: true },
-  { key: 'minivan', label: { fr: 'Minivan' }, minPassengers: 5, maxPassengers: 8, maxLuggage: 8, perKm: 1.2, minFare: 40 },
+  { key: 'minivan', label: { fr: 'Minivan' }, minPassengers: 5, maxPassengers: 6, maxLuggage: 6, perKm: 1.2, minFare: 40 },
+  { key: 'van', label: { fr: 'Van 8 places' }, minPassengers: 7, maxPassengers: 8, maxLuggage: 8, perKm: 1.4, minFare: 50 },
   { key: 'minibus', label: { fr: 'Minibus' }, minPassengers: 9, maxPassengers: 20, maxLuggage: 20, perKm: 1.8, minFare: 70 },
 ];
 /** « 1–4 pers. · 4 valises · sur demande » */
@@ -211,7 +212,7 @@ function Vehicles({ cfg, update, set }) {
   }
   return (
     <div className="stack">
-      <p className="help">Le nom est saisi en français et traduit automatiquement. <b>Passagers min et max</b> : le client ne voit que les véhicules adaptés à son groupe (ex. berline 1–4, minivan 5–8, minibus 9 et plus). L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
+      <p className="help">Le nom est saisi en français et traduit automatiquement. <b>Passagers min et max</b> : le client ne voit que les véhicules adaptés à son groupe (ex. berline 1–4, minivan 5–6, van 7–8, minibus 9 et plus). L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
       {missing.length > 0 && (
         <div className="alert alert--info row" style={{ justifyContent: 'space-between' }}>
           <span>Véhicules standard absents : {missing.map((x) => x.label.fr).join(', ')}.</span>

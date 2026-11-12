@@ -39,7 +39,7 @@ export default function Dashboard() {
           <h2 style={{ fontSize: 18 }}>Alertes</h2>
           {data.alerts.map((a, i) => (
             <Link key={i} to={`/admin/bookings?open=${a.id}`} className="alert alert--warn" style={{ textDecoration: 'none' }}>
-              {a.type === 'unconfirmed' ? 'Réservation non confirmée depuis plus de 6 h' : 'Chauffeur non attribué'} · {a.ref}
+              Réservation non confirmée depuis plus de 6 h · {a.ref}
             </Link>
           ))}
         </section>

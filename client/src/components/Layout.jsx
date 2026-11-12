@@ -6,6 +6,7 @@ import { LANGS, PATHS, path, langName } from '../i18n.js';
 import { Icon, Logo, BRAND } from './ui.jsx';
 import { PHOTOS } from '../images.js';
 import { waLink } from '../whatsapp.js';
+import { SOCIAL_NAMES } from '../social.js';
 
 function Header() {
   const { t } = useTranslation();
@@ -75,6 +76,9 @@ function Footer() {
   const { lang, settings } = useApp();
   const c = settings?.contact || {};
   const s = settings?.social || {};
+  // « Suivez-nous » : liens réglés dans Admin → Paramètres (sinon anciens champs Facebook, Instagram…)
+  const follow = s.showFollow === false ? [] : (s.links?.length ? s.links : [['tripadvisor', 'Tripadvisor'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok']].map(([k, n]) => ({ name: n, url: s[k] })))
+    .filter((x) => x.url && /^https?:\/\//i.test(x.url)).map((x) => ({ ...x, name: x.name || SOCIAL_NAMES[x.network] || 'Lien' }));
   const wa = waLink(c.whatsapp, t('hero.waText'));
   return (
     <footer className="footer">
@@ -96,9 +100,11 @@ function Footer() {
             <li><Link to={path(lang, 'legal', 'terms')}>{t('footer.terms')}</Link></li>
             <li><Link to={path(lang, 'legal', 'privacy')}>{t('footer.privacy')}</Link></li>
           </ul></div>
-          <div><h3>{t('footer.follow')}</h3><ul>
-            {[['tripadvisor', 'Tripadvisor'], ['facebook', 'Facebook'], ['instagram', 'Instagram'], ['tiktok', 'TikTok']].map(([k, n]) => s[k] ? <li key={k}><a href={s[k]} target="_blank" rel="noopener noreferrer">{n}</a></li> : null)}
-          </ul></div>
+          {follow.length > 0 && (
+            <div><h3>{t('footer.follow')}</h3><ul>
+              {follow.map((x, k) => <li key={k}><a href={x.url} target="_blank" rel="noopener noreferrer">{x.name}</a></li>)}
+            </ul></div>
+          )}
         </div>
         <div className="footer__bottom">
           © {new Date().getFullYear()} {BRAND}

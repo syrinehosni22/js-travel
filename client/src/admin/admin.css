@@ -215,3 +215,9 @@ select.inp { text-overflow: ellipsis; }
 .extra-card { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #fff; min-width: 0; }
 .extra-card__head { display: flex; gap: 6px; align-items: center; }
 .extra-card__head .inp { flex: 1; min-width: 0; font-weight: 600; }
+
+/* Suivez-nous (paramètres) */
+.follow-row { display: grid; grid-template-columns: 170px auto minmax(0, 1fr) auto; gap: 8px; align-items: center; }
+.follow-row:not(:has(input[aria-label="Nom affiché"])) { grid-template-columns: 170px minmax(0, 1fr) auto; }
+.follow-row__url.is-bad { border-color: #B42318; }
+@media (max-width: 640px) { .follow-row, .follow-row:not(:has(input[aria-label="Nom affiché"])) { grid-template-columns: 1fr; } }

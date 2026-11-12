@@ -57,7 +57,11 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   earlyBooking: { daysBefore: Number, percent: Number },
   fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, TND: Number, updatedAt: Date },
   contact: { phone: String, whatsapp: String, viber: String, email: String, address: String, mapEmbed: String },
-  social: { tripadvisor: String, facebook: String, instagram: String, tiktok: String, googleReviews: String },
+  social: { tripadvisor: String, facebook: String, instagram: String, tiktok: String, googleReviews: String,
+    // Liens affichés dans « Suivez-nous » (pied de page), dans l'ordre choisi
+    links: [{ _id: false, network: String, name: String, url: String }],
+    showFollow: { type: Boolean, default: true },
+  },
   reviews: { rating: Number, count: Number },
   cancellationHours: { type: Number, default: 24 },
   noShowBlockAfter: { type: Number, default: 2 },

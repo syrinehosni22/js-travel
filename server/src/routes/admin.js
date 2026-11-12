@@ -90,7 +90,6 @@ r.get('/dashboard', allow('manager'), async (_req, res) => {
     revenueMonth: revenue[0] || { expected: 0, collected: 0, count: 0 },
     alerts: [
       ...oldNew.map((b) => ({ type: 'unconfirmed', ref: b.ref, id: b._id })),
-      ...unassigned.map((b) => ({ type: 'no_driver', ref: b.ref, id: b._id })),
     ],
   });
 });

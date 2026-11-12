@@ -119,7 +119,8 @@ const PLACES = [
 
 const VEHICLES = [
   { key: 'sedan', label: L('Sedan', 'Berline', 'Limousine', 'Berlina', 'Berlina'), minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 0.9, minFare: 30 },
-  { key: 'minivan', label: L('Minivan', 'Minivan', 'Minivan', 'Minivan', 'Monovolumen'), minPassengers: 5, maxPassengers: 8, maxLuggage: 8, perKm: 1.2, minFare: 40 },
+  { key: 'minivan', label: L('Minivan', 'Minivan', 'Minivan', 'Minivan', 'Monovolumen'), minPassengers: 5, maxPassengers: 6, maxLuggage: 6, perKm: 1.2, minFare: 40 },
+  { key: 'van', label: L('Van (8 seats)', 'Van 8 places', 'Van (8 Plätze)', 'Van (8 posti)', 'Furgoneta (8 plazas)'), minPassengers: 7, maxPassengers: 8, maxLuggage: 8, perKm: 1.4, minFare: 50 },
   { key: 'minibus', label: L('Minibus', 'Minibus', 'Kleinbus', 'Minibus', 'Microbús'), minPassengers: 9, maxPassengers: 20, maxLuggage: 20, perKm: 1.8, minFare: 70 },
   { key: 'vip', label: L('VIP vehicle', 'Véhicule VIP', 'VIP-Fahrzeug', 'Veicolo VIP', 'Vehículo VIP'), minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1.6, minFare: 60, onRequest: true },
 ];
@@ -375,7 +376,7 @@ export async function runSeed({ reset = false, create = true, log = console.log 
       'tunis-airport|tunis': 20, 'tunis-airport|hammamet': 60, 'tunis-airport|sousse': 110,
       'djerba-airport|djerba': 25, 'sousse|tunis': 110, 'sousse|hammamet': 60,
     };
-    const factor = { sedan: 1, minivan: 1.4, minibus: 2.4, vip: 1.8 };
+    const factor = { sedan: 1, minivan: 1.4, van: 1.7, minibus: 2.4, vip: 1.8 };
     const grid = [];
     for (const [k, price] of Object.entries(base)) {
       const [fromZone, toZone] = k.split('|');
@@ -396,7 +397,19 @@ export async function runSeed({ reset = false, create = true, log = console.log 
       }
       return { ...v, label };
     });
-    if (changed) await TransferConfig.updateOne({ _id: cfg._id }, { $set: { vehicles } });
+    // Nouvelle répartition (une seule fois) : minivan 5–6, van 7–8 (prix repris du minivan, à ajuster), minibus 9+
+    let grid = cfg.grid || [];
+    const mv = vehicles.find((v) => v.key === 'minivan');
+    if (mv && !vehicles.some((v) => v.key === 'van')) {
+      changed = true;
+      Object.assign(mv, { minPassengers: 5, maxPassengers: 6, maxLuggage: Math.min(mv.maxLuggage || 6, 6) });
+      const van = VEHICLES.find((v) => v.key === 'van');
+      vehicles.splice(vehicles.indexOf(mv) + 1, 0, { ...van, perKm: mv.perKm ?? van.perKm, minFare: mv.minFare ?? van.minFare });
+      grid = [...grid, ...grid.filter((g) => g.vehicle === 'minivan').map((g) => ({ ...g, vehicle: 'van' }))];
+      const mb = vehicles.find((v) => v.key === 'minibus');
+      if (mb) mb.minPassengers = 9;
+    }
+    if (changed) await TransferConfig.updateOne({ _id: cfg._id }, { $set: { vehicles, grid } });
   }
 
   const route = await TransferRoute.findOne({ fromZone: ROUTE_ENFIDHA_SOUSSE.fromZone, toZone: ROUTE_ENFIDHA_SOUSSE.toZone }).lean();
