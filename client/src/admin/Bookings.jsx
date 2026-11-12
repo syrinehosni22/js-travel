@@ -19,10 +19,9 @@ function useDeleteBooking() {
   };
 }
 
-/** Fiche détaillée : statut, montant encaissé, chauffeur, renvoi des bons (§7.1) */
+/** Fiche détaillée : statut, montant encaissé, renvoi des bons (§7.1) */
 function BookingDrawer({ id, onClose, onSaved }) {
   const { data: b, reload, error } = useLoad(() => adminApi.get(`/bookings/${id}`), [id]);
-  const { data: plan } = useLoad(() => adminApi.get('/planning'), []);
   const [toast, say] = useToast();
   const [collected, setCollected] = useState('');
   useEffect(() => { if (b) setCollected(b.collectedAmount ?? b.totalEur); }, [b]);
@@ -45,7 +44,6 @@ function BookingDrawer({ id, onClose, onSaved }) {
   }
   if (error) return <div className="drawer"><Err error={error} /></div>;
   if (!b) return <div className="drawer">Chargement…</div>;
-  const drivers = plan?.drivers || [];
   return (
     <>
       <div className="backdrop" onClick={onClose} />
@@ -85,15 +83,7 @@ function BookingDrawer({ id, onClose, onSaved }) {
             {i.transfer && <span className="muted">{i.transfer.from} → {i.transfer.to} · {i.transfer.vehicle} {i.transfer.flightNumber && `· vol ${i.transfer.flightNumber}`}</span>}
             {i.options?.length > 0 && <span className="muted">Options : {i.options.join(', ')}</span>}
             {canEdit && (
-              <div className="grid-2">
-                <label className="lbl">Chauffeur
-                  <select className="inp" value={i.driver?._id || i.driver || ''} onChange={(e) => patch({ items: [{ _id: i._id, driver: e.target.value || null }] }, 'Chauffeur attribué — client prévenu')}>
-                    <option value="">— non attribué —</option>
-                    {drivers.map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
-                  </select>
-                </label>
-                <label className="lbl">Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
-              </div>
+              <label className="lbl" style={{ maxWidth: 220 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
             )}
           </div>
         ))}
@@ -180,7 +170,7 @@ export default function Bookings() {
                 <td><strong>{b.ref}</strong></td>
                 <td>{b.firstServiceDate}</td>
                 <td>{b.customer.name}<br /><small className="muted">{b.customer.phone}</small></td>
-                <td>{b.items.map((i) => i.title).join(' + ')}{b.items.some((i) => !i.driver && i.status !== 'cancelled') && b.status !== 'cancelled' && <><br /><small style={{ color: '#9B1C1C' }}>chauffeur à attribuer</small></>}</td>
+                <td>{b.items.map((i) => i.title).join(' + ')}</td>
                 <td>{eur(b.totalEur)}</td>
                 <td><Status s={b.status} /></td>
                 <td onClick={(e) => e.stopPropagation()}><div className="actions">
