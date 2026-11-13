@@ -80,7 +80,7 @@ export function discountRate({ promo, early, partner, date, today = new Date(), 
  * excursion.pricing = {
  *   mode: 'per_person' | 'minimum' | 'per_vehicle' | 'group_flat' | 'quote',
  *   seasons: { low: { minimum, adult }, mid: {...}, high: {...} },   // M et p par saison
- *   childDiscount: 0.5,  infantDiscount: 1,   // réductions sur le prix réduit (1 = gratuit)
+ *   childDiscount: 0,    infantDiscount: 0,   // réductions sur le prix réduit (1 = gratuit)
  *   childAges: [4, 11],  infantAges: [0, 3],
  *   vehicle: { capacity: 7, price: 90 },       // mode per_vehicle (prix par saison possible via seasons.x.vehicle)
  *   flat: { upTo: 6, price: 300, extraPerPerson: 40 },
@@ -113,8 +113,8 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
   if (pr.maxGroup && n > pr.maxGroup) return { ...result, quote: true, overCapacity: true };
 
   const pAdult = +s.adult || 0;
-  const pChild = round2(pAdult * (1 - (pr.childDiscount ?? 0.5)));
-  const pInfant = round2(pAdult * (1 - (pr.infantDiscount ?? 1)));
+  const pChild = round2(pAdult * (1 - (pr.childDiscount ?? 0)));
+  const pInfant = round2(pAdult * (1 - (pr.infantDiscount ?? 0)));
   let base = 0;
   let vehicles = Math.ceil(n / ((pr.vehicle && pr.vehicle.capacity) || 8));
 

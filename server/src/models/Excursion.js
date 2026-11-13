@@ -12,8 +12,8 @@ const SeasonPrice = new mongoose.Schema({
 const PricingSchema = new mongoose.Schema({
   mode: { type: String, enum: ['per_person', 'minimum', 'per_vehicle', 'group_flat', 'quote'], default: 'minimum' },
   seasons: { low: SeasonPrice, mid: SeasonPrice, high: SeasonPrice },
-  childDiscount: { type: Number, default: 0.5 },
-  infantDiscount: { type: Number, default: 1 },
+  childDiscount: { type: Number, default: 0 },
+  infantDiscount: { type: Number, default: 0 },
   childAges: { type: [Number], default: [4, 11] },
   infantAges: { type: [Number], default: [0, 3] },
   vehicle: { capacity: { type: Number, default: 8 }, price: Number },

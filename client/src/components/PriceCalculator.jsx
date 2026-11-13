@@ -96,7 +96,7 @@ export default function PriceCalculator({ excursion }) {
         <div className="calc__people">
           <span className="calc__label"><Icon name="users" size={16} /> {t('search.people')}</span>
           <Counter label={t('calc.adults')} hint={t('calc.adultsHint')} value={p.adult} min={1} max={maxGroup} onChange={(v) => setP({ ...p, adult: v })} />
-          <Counter label={t('calc.children')} hint={t('calc.childrenHint', { from: ages.c[0], to: ages.c[1], pct: Math.round((pr.childDiscount ?? 0.5) * 100) })} value={p.child} max={maxGroup} onChange={(v) => setP({ ...p, child: v })} />
+          <Counter label={t('calc.children')} hint={(pr.childDiscount ?? 0) > 0 ? t('calc.childrenHint', { from: ages.c[0], to: ages.c[1], pct: Math.round(pr.childDiscount * 100) }) : t('calc.infantsHint', { from: ages.c[0], to: ages.c[1] })} value={p.child} max={maxGroup} onChange={(v) => setP({ ...p, child: v })} />
           <Counter label={t('calc.infants')} hint={t('calc.infantsHint', { from: ages.i[0], to: ages.i[1] })} value={p.infant} max={maxGroup} onChange={(v) => setP({ ...p, infant: v })} />
         </div>
 
@@ -164,7 +164,7 @@ export default function PriceCalculator({ excursion }) {
             {wl.sent && ' ✓'}
           </div>
         )}
-        {date && avail?.available && <div className="muted" style={{ fontSize: 14 }}>{avail.mode === 'instant' ? t('calc.instant') : t('calc.onRequest', { h: excursion.availability?.confirmWithinHours || 12 })}</div>}
+        {date && avail?.available && <div className="muted" style={{ fontSize: 14 }}>{avail.mode === 'instant' ? t('calc.instant') : t('calc.onRequest')}</div>}
 
         {price.quote
           ? <Link to={path(lang, 'custom')} className="btn btn--green btn--lg">{t('calc.quote')}</Link>
