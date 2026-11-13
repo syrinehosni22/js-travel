@@ -95,7 +95,6 @@ export default function ExcursionDetail() {
 
   const seo = e.seo || {};
   const c = settings?.contact || {};
-  const maxGroup = e.pricing?.maxGroup || 8;
   const cancelH = e.cancellationFreeHours || 24;
   const cities = (e.departureCities || []).map((x) => placeName(x, lang));
   const languages = (e.guideLanguages || []).map((l) => langName(l, lang));
@@ -148,8 +147,8 @@ export default function ExcursionDetail() {
                 {e.durationLabel && <AboutItem icon="clock" title={`${t('detail.duration')} : ${e.durationLabel}`}>{e.startTimes?.length ? t('detail.startAt', { times: e.startTimes.join(', ') }) : null}</AboutItem>}
                 {languages.length > 0 && <AboutItem icon="guide" title={t('detail.guideTitle')}>{languages.join(', ')}</AboutItem>}
                 {cities.length > 0 && <AboutItem icon="pin" title={t('detail.pickupTitle')}>{t('detail.pickupText', { cities: cities.join(', ') })}</AboutItem>}
-                <AboutItem icon="users" title={t('detail.privateTitle')}>{t('detail.privateText', { n: maxGroup })}</AboutItem>
-                <AboutItem icon="bolt" title={e.availability?.mode === 'instant' ? t('calc.instant') : t('detail.confirmTitle')}>{e.availability?.mode === 'instant' ? null : t('calc.onRequest', { h: e.availability?.confirmWithinHours || 12 })}</AboutItem>
+                <AboutItem icon="users" title={t('detail.privateTitle')}>{t('detail.privateText')}</AboutItem>
+                <AboutItem icon="bolt" title={e.availability?.mode === 'instant' ? t('calc.instant') : t('detail.confirmTitle')}>{e.availability?.mode === 'instant' ? null : t('calc.onRequest')}</AboutItem>
               </ul>
             </section>
           </div>
@@ -228,7 +227,7 @@ export default function ExcursionDetail() {
                 <div className="gyg-row"><h3>{t('detail.knowBefore')}</h3>
                   <ul className="dots">
                     {e.minAge > 0 && <li>{t('detail.minAgeText', { n: e.minAge })}</li>}
-                    <li>{t('detail.privateText', { n: maxGroup })}</li>
+                    <li>{t('detail.privateText')}</li>
                     <li>{t('detail.freeCancelText', { h: cancelH })}</li>
                   </ul>
                 </div>

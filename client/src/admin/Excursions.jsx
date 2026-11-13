@@ -365,7 +365,6 @@ function PricingTab({ e, set, id }) {
             <option value="per_vehicle">Par véhicule</option><option value="group_flat">Forfait groupe</option><option value="quote">Sur devis</option>
           </select>
         </label>
-        <label className="lbl">Capacité maximale (personnes)<input className="inp" type="number" value={pr.maxGroup ?? 8} onChange={(ev) => set(P('maxGroup'), +ev.target.value)} /></label>
         <label className="lbl">Supplément week-end (%)<input className="inp" type="number" value={pr.weekendSupplement ?? 0} onChange={(ev) => set(P('weekendSupplement'), +ev.target.value)} /></label>
       </div>
 
@@ -402,9 +401,9 @@ function PricingTab({ e, set, id }) {
       </div>}
 
       <div className="grid-3">
-        <label className="lbl">Réduction enfant (0,5 = −50 %)<input className="inp" type="number" step="0.05" value={pr.childDiscount ?? 0.5} onChange={(ev) => set(P('childDiscount'), +ev.target.value)} /></label>
+        <label className="lbl">Réduction enfant (0,5 = −50 %)<input className="inp" type="number" step="0.05" value={pr.childDiscount ?? 0} onChange={(ev) => set(P('childDiscount'), +ev.target.value)} /></label>
         <label className="lbl">Âges enfant (de, à)<input className="inp" value={(pr.childAges || [4, 11]).join(',')} onChange={(ev) => set(P('childAges'), ev.target.value.split(',').map(Number))} /></label>
-        <label className="lbl">Réduction bébé (1 = gratuit)<input className="inp" type="number" step="0.05" value={pr.infantDiscount ?? 1} onChange={(ev) => set(P('infantDiscount'), +ev.target.value)} /></label>
+        <label className="lbl">Réduction bébé (1 = gratuit)<input className="inp" type="number" step="0.05" value={pr.infantDiscount ?? 0} onChange={(ev) => set(P('infantDiscount'), +ev.target.value)} /></label>
       </div>
 
       <fieldset className="panel stack"><legend><strong>Zones de prise en charge</strong></legend>
@@ -501,7 +500,6 @@ function AvailabilityTab({ e, set }) {
     <div className="stack">
       <div className="grid-3">
         <label className="lbl">Confirmation<select className="inp" value={a.mode || 'request'} onChange={(ev) => set('availability.mode', ev.target.value)}><option value="instant">Instantanée</option><option value="request">Sur demande</option></select></label>
-        <label className="lbl">Validation sous (heures)<input className="inp" type="number" value={a.confirmWithinHours ?? 12} onChange={(ev) => set('availability.confirmWithinHours', +ev.target.value)} /></label>
         <label className="lbl">Groupes par jour (capacité)<input className="inp" type="number" value={a.capacityPerDay ?? 3} onChange={(ev) => set('availability.capacityPerDay', +ev.target.value)} /></label>
         <label className="lbl">Délai minimum de réservation (h)<input className="inp" type="number" value={a.minNoticeHours ?? 24} onChange={(ev) => set('availability.minNoticeHours', +ev.target.value)} /></label>
         <label className="lbl">Annulation gratuite jusqu’à (h avant)<input className="inp" type="number" value={e.cancellationFreeHours ?? 24} onChange={(ev) => set('cancellationFreeHours', +ev.target.value)} /></label>

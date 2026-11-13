@@ -175,7 +175,7 @@ const EXCURSIONS = [
     pricing: {
       mode: 'minimum',
       seasons: { low: { minimum: 200, adult: 50 }, mid: { minimum: 220, adult: 55 }, high: { minimum: 240, adult: 60 } },
-      childDiscount: 0.5, infantDiscount: 1, maxGroup: 8, zones: zonesPickup,
+      childDiscount: 0, infantDiscount: 0, maxGroup: 8, zones: zonesPickup,
       guideLanguages: [{ lang: 'de', fee: 0 }, { lang: 'it', fee: 0 }],
       options: [lunch, photo],
     },
@@ -210,7 +210,7 @@ const EXCURSIONS = [
     pricing: {
       mode: 'minimum',
       seasons: { low: { minimum: 480, adult: 120 }, mid: { minimum: 520, adult: 130 }, high: { minimum: 560, adult: 140 } }, // EXEMPLES
-      childDiscount: 0.5, maxGroup: 8, zones: zonesPickup,
+      childDiscount: 0, infantDiscount: 0, maxGroup: 8, zones: zonesPickup,
       options: [
         { key: 'camel', label: L('Camel ride at sunset', 'Dromadaire au coucher du soleil', 'Kamelritt bei Sonnenuntergang', 'Dromedario al tramonto', 'Dromedario al atardecer'), price: 20, per: 'person' },
         { key: 'quad', label: L('Quad in the dunes', 'Quad dans les dunes', 'Quad in den Dünen', 'Quad tra le dune', 'Quad en las dunas'), price: 45, per: 'person' },
@@ -241,7 +241,7 @@ const EXCURSIONS = [
     pricing: {
       mode: 'minimum',
       seasons: { low: { minimum: 180, adult: 45 }, mid: { minimum: 200, adult: 50 }, high: { minimum: 220, adult: 55 } }, // EXEMPLES
-      childDiscount: 0.5, maxGroup: 8, zones: zonesPickup, options: [lunch],
+      childDiscount: 0, infantDiscount: 0, maxGroup: 8, zones: zonesPickup, options: [lunch],
     },
     availability: { mode: 'instant', capacityPerDay: 3 },
     seo: seo({
