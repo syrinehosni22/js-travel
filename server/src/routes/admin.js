@@ -26,8 +26,8 @@ const upload = multer({
     destination: UPLOAD_DIR,
     filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(4).toString('hex')}${path.extname(file.originalname).toLowerCase()}`),
   }),
-  limits: { fileSize: 25 * 1024 * 1024 },
-  fileFilter: (_req, file, cb) => cb(null, /^image\/(jpeg|png|webp|avif)$|^video\/mp4$/.test(file.mimetype)),
+  limits: { fileSize: 100 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => cb(null, /^image\/(jpeg|png|webp|avif)$|^video\/(mp4|webm|quicktime|x-m4v)$/.test(file.mimetype)),
 });
 
 const r = Router();

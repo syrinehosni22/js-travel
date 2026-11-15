@@ -9,6 +9,7 @@ import PriceCalculator from '../components/PriceCalculator.jsx';
 import NotFound from './NotFound.jsx';
 import RouteMap from '../components/RouteMap.jsx';
 import { parseVideo } from '../components/About.jsx';
+import { allVideos } from '../lib/videos.js';
 import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
@@ -79,6 +80,7 @@ function VideoBlock({ url, poster, title }) {
   const [playing, setPlaying] = useState(false);
   const video = parseVideo(url);
   if (!video) return null;
+  if (video.kind === 'file') return <video className="gyg-video__file" src={`${video.src}#t=0.1`} controls preload="metadata" playsInline aria-label={title} />;
   const cover = video.poster || poster;
   return (
     <div className="company__media gyg-video">
@@ -139,6 +141,7 @@ export default function ExcursionDetail() {
       { '@type': 'ListItem', position: 3, name: e.title },
     ] },
   ].filter(Boolean);
+  const videos = allVideos(e).filter((v) => parseVideo(v));
   const hasImportant = e.toBring?.length > 0 || e.minAge > 0 || e.notIncluded?.length > 0;
 
   return (
@@ -192,10 +195,12 @@ export default function ExcursionDetail() {
               </section>
             )}
 
-            {parseVideo(e.video) && (
+            {videos.length > 0 && (
               <section className="gyg-sec">
-                <h2>{t('detail.video')}</h2>
-                <VideoBlock url={e.video} poster={e.images?.[0]?.url} title={e.title} />
+                <h2>{t(videos.length > 1 ? 'detail.videos' : 'detail.video')}</h2>
+                <div className="gyg-videos">
+                  {videos.map((v) => <VideoBlock key={v} url={v} poster={e.images?.[0]?.url} title={e.title} />)}
+                </div>
               </section>
             )}
 

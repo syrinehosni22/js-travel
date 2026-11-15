@@ -439,7 +439,9 @@ button, input, select { font: inherit; color: inherit; }
 .incl svg { flex: none; margin-top: 2px; }
 .incl .yes svg { color: #16803C; } .incl .no svg { color: #B42318; } .incl .no { color: var(--muted); }
 .gyg-sec .timeline li { display: flex; gap: 12px; flex-wrap: wrap; }
-.gyg-video { aspect-ratio: 16 / 9; margin-top: 14px; }
+.gyg-videos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); margin-top: 14px; }
+.gyg-video { aspect-ratio: 16 / 9; }
+.gyg-video__file { display: block; width: 100%; aspect-ratio: 16 / 9; border-radius: var(--radius); background: #000; object-fit: contain; }
 .gyg-map { width: 100%; height: 300px; border: 0; border-radius: 16px; margin-top: 14px; }
 .gyg-contact { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; justify-content: space-between; }
 

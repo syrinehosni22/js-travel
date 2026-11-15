@@ -5,6 +5,7 @@ import { seoScore, seoErrors, slugify } from '../lib/seo.js';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
 import RouteMap, { roadPath, searchPlace } from '../components/RouteMap.jsx';
 import { parseVideo } from '../components/About.jsx';
+import { allVideos, isVideoFile } from '../lib/videos.js';
 import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
@@ -213,15 +214,31 @@ function InfoTab({ e, set }) {
   const [drag, setDrag] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [upErr, setUpErr] = useState(null);
+  const videos = allVideos(e);
+  // Toujours enregistrer la liste dans `videos` et vider l'ancien champ `video`
+  const setVideos = (list) => { set('videos', list); if (e.video) set('video', ''); };
   async function upload(files) {
     if (!files?.length) return;
+    const list = [...files];
+    const imgs = list.filter((f) => !isVideoFile(f));
+    const vids = list.filter(isVideoFile);
     setUploading(true); setUpErr(null);
     try {
-      const res = await adminUpload(files);
-      set('images', [...(e.images || []), ...res.filter((x) => !x.name.toLowerCase().endsWith('.mp4')).map((x) => ({ url: x.url, alt: { ...EMPTY_L(), fr: e.title?.fr || '' } }))]);
-      const video = res.find((x) => x.name.toLowerCase().endsWith('.mp4'));
-      if (video) set('video', video.url);
+      if (imgs.length) {
+        const res = await adminUpload(imgs);
+        set('images', [...(e.images || []), ...res.map((x) => ({ url: x.url, alt: { ...EMPTY_L(), fr: e.title?.fr || '' } }))]);
+      }
     } catch (x) { setUpErr(x); }
+    // Vidéos envoyées une par une (fichiers lourds) ; celles déjà envoyées sont gardées en cas d'erreur
+    const urls = [];
+    try {
+      for (const [i, f] of vids.entries()) {
+        setUploading(`Envoi de la vidéo ${i + 1} sur ${vids.length}…`);
+        const [res] = await adminUpload([f]);
+        urls.push(res.url);
+      }
+    } catch (x) { setUpErr(x); }
+    if (urls.length) setVideos([...videos, ...urls]);
     setUploading(false);
   }
   const csv = (v) => (v || []).join(', ');
@@ -244,9 +261,9 @@ function InfoTab({ e, set }) {
       <div className={`panel stack`} style={{ borderStyle: 'dashed', borderWidth: 2, borderColor: drag ? 'var(--green)' : 'var(--line)' }}
         onDragOver={(ev) => { ev.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
         onDrop={(ev) => { ev.preventDefault(); setDrag(false); upload(ev.dataTransfer.files); }}>
-        <strong>Photos et vidéo</strong>
-        <p className="muted">Glissez-déposez vos fichiers ici (JPG, PNG, WebP, MP4 · 25 Mo max) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4" hidden onChange={(ev) => upload(ev.target.files)} /></label>. La première photo est l’image principale.</p>
-        {uploading && <p>Envoi…</p>}
+        <strong>Photos et vidéos</strong>
+        <p className="muted">Glissez-déposez vos photos et vidéos ici (photos JPG, PNG, WebP · vidéos MP4, WebM, MOV · 100 Mo max par fichier) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" hidden onChange={(ev) => { upload(ev.target.files); ev.target.value = ''; }} /></label>. La première photo est l’image principale.</p>
+        {uploading && <p>{typeof uploading === 'string' ? uploading : 'Envoi…'}</p>}
         <Err error={upErr} />
         <div className="grid-3">
           {(e.images || []).map((img, i) => (
@@ -260,11 +277,27 @@ function InfoTab({ e, set }) {
             </div>
           ))}
         </div>
-        <label className="lbl">Vidéo de l’excursion (lien YouTube ou Vimeo, ou fichier MP4 déposé ci-dessus)
-          <input className="inp" placeholder="https://www.youtube.com/watch?v=…" value={e.video || ''} onChange={(ev) => set('video', ev.target.value.trim())} />
-        </label>
-        {e.video && !parseVideo(e.video) && <p className="alert alert--info">Lien non reconnu : utilisez un lien YouTube, Vimeo ou un fichier .mp4.</p>}
-        {e.video && <div className="row"><RemoveButton what="la vidéo" className="btn btn--danger-outline btn-sm" label="Retirer la vidéo" onConfirm={() => set('video', '')} /></div>}
+        <div className="row" style={{ justifyContent: 'space-between' }}>
+          <strong>Vidéos{videos.length > 0 ? ` (${videos.length})` : ''}</strong>
+          <label className="btn btn--outline btn-sm">Ajouter des vidéos<input type="file" multiple accept="video/mp4,video/webm,video/quicktime" hidden disabled={!!uploading} onChange={(ev) => { upload(ev.target.files); ev.target.value = ''; }} /></label>
+        </div>
+        {videos.length === 0 && <p className="muted">Aucune vidéo. Elles s’affichent sur la fiche dans l’ordre ci-dessous.</p>}
+        <div className="grid-3">
+          {videos.map((v, i) => {
+            const pv = parseVideo(v);
+            return (
+              <div key={v} className="stack" style={{ gap: 6 }}>
+                {pv?.kind === 'file'
+                  ? <video src={`${pv.src}#t=0.1`} controls preload="metadata" playsInline style={{ width: '100%', height: 160, borderRadius: 12, background: '#000' }} aria-label={`Vidéo ${i + 1}`} />
+                  : <p className="muted" style={{ wordBreak: 'break-all' }}>{v}</p>}
+                <div className="row">
+                  {i > 0 && <button type="button" className="btn btn--outline btn-sm" onClick={() => { const a = [...videos]; [a[i - 1], a[i]] = [a[i], a[i - 1]]; setVideos(a); }}>Monter</button>}
+                  <RemoveButton what="cette vidéo" className="btn btn--danger-outline btn-sm" label="Supprimer" onConfirm={() => setVideos(videos.filter((_, k) => k !== i))} />
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
