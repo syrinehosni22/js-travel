@@ -46,7 +46,8 @@ const ExcursionSchema = new mongoose.Schema({
   groupSize: { min: { type: Number, default: 1 }, max: { type: Number, default: 8 } },
   badges: [{ type: String, enum: ['private', 'family', 'bestseller', 'new'] }],
   images: [{ _id: false, url: String, alt: L() }],
-  video: String,
+  video: String,                 // ancien champ (une seule vidéo), conservé pour les fiches existantes
+  videos: [String],              // vidéos envoyées (/uploads/…)
   mapEmbed: String,
   /** Trajet affiché sur la carte de la fiche : étapes dans l'ordre + tracé routier facultatif */
   itinerary: {

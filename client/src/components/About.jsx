@@ -14,7 +14,7 @@ export function parseVideo(url) {
   if (yt) return { kind: 'iframe', src: `https://www.youtube-nocookie.com/embed/${yt[1]}?autoplay=1&rel=0&modestbranding=1`, poster: `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg` };
   const vm = u.match(/vimeo\.com\/(?:video\/)?(\d+)/i);
   if (vm) return { kind: 'iframe', src: `https://player.vimeo.com/video/${vm[1]}?autoplay=1&dnt=1` };
-  if (/\.(mp4|webm)(\?.*)?$/i.test(u)) return { kind: 'file', src: assetUrl(u) };
+  if (/\.(mp4|webm|mov|m4v)(\?.*)?$/i.test(u)) return { kind: 'file', src: assetUrl(u) };
   return null;
 }
 

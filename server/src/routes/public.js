@@ -40,7 +40,7 @@ function localize(e, l, full = false) {
       stops: e.itinerary.stops.filter((x) => Number.isFinite(x.lat) && Number.isFinite(x.lng)).map((x) => ({ name: pick(x.name, l), note: pick(x.note, l), lat: x.lat, lng: x.lng })),
       path: e.itinerary.path?.length > 1 ? e.itinerary.path : null,
     } : null,
-    video: e.video, mapEmbed: e.mapEmbed, minAge: e.minAge, groupSize: e.groupSize, startTimes: e.startTimes,
+    videos: [...new Set([...(e.videos || []), e.video].filter(Boolean))], mapEmbed: e.mapEmbed, minAge: e.minAge, groupSize: e.groupSize, startTimes: e.startTimes,
     cancellationFreeHours: e.cancellationFreeHours,
     availability: { mode: e.availability?.mode, confirmWithinHours: e.availability?.confirmWithinHours },
     // Règles de prix publiques : le navigateur calcule l'affichage instantané, le serveur recalcule à la réservation.
