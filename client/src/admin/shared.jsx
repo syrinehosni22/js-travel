@@ -30,7 +30,7 @@ const ADMIN_ERRORS = {
   BAD_ID: 'Cet élément est introuvable (il a peut-être été supprimé).',
   NOT_FOUND: 'Cet élément est introuvable (il a peut-être été supprimé).',
   FORBIDDEN: 'Vous n’avez pas les droits nécessaires pour cette action.',
-  TOO_LARGE: 'Fichier trop lourd (8 Mo maximum).',
+  TOO_LARGE: 'Fichier trop lourd (25 Mo maximum).',
   BAD_FILE: 'Ce fichier n’est pas accepté. Formats possibles : JPG, PNG, WebP, AVIF ou MP4.',
   TOO_MANY: 'Trop de tentatives. Patientez quelques minutes puis réessayez.',
   TRANSLATION_FAILED: 'La traduction automatique est indisponible pour le moment. Réessayez plus tard.',

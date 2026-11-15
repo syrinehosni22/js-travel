@@ -145,7 +145,7 @@ function AboutPanel({ s, set, lang, setLang }) {
             <label className="btn btn--outline btn-sm">{busy === 'image' ? 'Envoi…' : a.image ? 'Changer la photo' : 'Choisir une photo'}<input type="file" accept="image/jpeg,image/png,image/webp,image/avif" hidden onChange={(e) => send(e.target.files, 'image')} /></label>
             {a.image && <button type="button" className="btn btn--danger-outline btn-sm" onClick={() => set('about.image', '')}>Retirer</button>}
           </div>
-          <small className="muted">JPG, PNG ou WebP, 8 Mo max. Sans photo, une image de Tunisie est affichée.</small>
+          <small className="muted">JPG, PNG ou WebP, 25 Mo max. Sans photo, une image de Tunisie est affichée.</small>
         </div>
         <div className="stack" style={{ gap: 8 }}>
           <strong>Vidéo de présentation (facultatif)</strong>
