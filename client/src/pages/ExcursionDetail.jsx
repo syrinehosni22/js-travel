@@ -8,6 +8,7 @@ import { Seo, Media, TourCard, Loading, ErrorBox, Icon } from '../components/ui.
 import PriceCalculator from '../components/PriceCalculator.jsx';
 import NotFound from './NotFound.jsx';
 import RouteMap from '../components/RouteMap.jsx';
+import { parseVideo } from '../components/About.jsx';
 import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
@@ -68,6 +69,31 @@ function Collapsible({ text }) {
     <div>
       <div className={`prose gyg-desc${long && !open ? ' is-clamped' : ''}`}>{paras.map((p, i) => <p key={i}>{p}</p>)}</div>
       {long && <button type="button" className="link-btn" onClick={() => setOpen(!open)} aria-expanded={open}>{open ? t('detail.showLess') : t('detail.showMore')}</button>}
+    </div>
+  );
+}
+
+/** Espace vidéo de la fiche : affiche l'aperçu, la vidéo ne se charge qu'au clic */
+function VideoBlock({ url, poster, title }) {
+  const { t } = useTranslation();
+  const [playing, setPlaying] = useState(false);
+  const video = parseVideo(url);
+  if (!video) return null;
+  const cover = video.poster || poster;
+  return (
+    <div className="company__media gyg-video">
+      {playing ? (
+        video.kind === 'iframe'
+          ? <iframe src={video.src} title={title} allow="autoplay; encrypted-media; picture-in-picture; fullscreen" allowFullScreen />
+          : <video src={video.src} poster={cover ? assetUrl(cover) : undefined} controls autoPlay playsInline />
+      ) : (
+        <Media src={cover} photo={cover ? undefined : 'sidiBouSaidMosque'} alt="" sizes="(max-width: 900px) 100vw, 60vw">
+          <button type="button" className="company__play" onClick={() => setPlaying(true)}>
+            <span className="company__play-icon" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26"><path d="M8 5.5v13l11-6.5z" fill="currentColor" /></svg></span>
+            <span>{t('detail.watchVideo')}</span>
+          </button>
+        </Media>
+      )}
     </div>
   );
 }
@@ -163,6 +189,13 @@ export default function ExcursionDetail() {
                 <h2>{t('detail.experience')}</h2>
                 {e.highlights?.length > 0 && <div className="gyg-row"><h3>{t('detail.highlights')}</h3><ul className="dots">{e.highlights.map((x, i) => <li key={i}>{x}</li>)}</ul></div>}
                 {e.description && <div className="gyg-row"><h3>{t('detail.fullDescription')}</h3><Collapsible text={e.description} /></div>}
+              </section>
+            )}
+
+            {parseVideo(e.video) && (
+              <section className="gyg-sec">
+                <h2>{t('detail.video')}</h2>
+                <VideoBlock url={e.video} poster={e.images?.[0]?.url} title={e.title} />
               </section>
             )}
 

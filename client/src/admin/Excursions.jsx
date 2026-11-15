@@ -4,6 +4,7 @@ import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/prici
 import { seoScore, seoErrors, slugify } from '../lib/seo.js';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
 import RouteMap, { roadPath, searchPlace } from '../components/RouteMap.jsx';
+import { parseVideo } from '../components/About.jsx';
 import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
@@ -244,7 +245,7 @@ function InfoTab({ e, set }) {
         onDragOver={(ev) => { ev.preventDefault(); setDrag(true); }} onDragLeave={() => setDrag(false)}
         onDrop={(ev) => { ev.preventDefault(); setDrag(false); upload(ev.dataTransfer.files); }}>
         <strong>Photos et vidéo</strong>
-        <p className="muted">Glissez-déposez vos fichiers ici (JPG, PNG, WebP, MP4 · 8 Mo max) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4" hidden onChange={(ev) => upload(ev.target.files)} /></label>. La première photo est l’image principale.</p>
+        <p className="muted">Glissez-déposez vos fichiers ici (JPG, PNG, WebP, MP4 · 25 Mo max) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4" hidden onChange={(ev) => upload(ev.target.files)} /></label>. La première photo est l’image principale.</p>
         {uploading && <p>Envoi…</p>}
         <Err error={upErr} />
         <div className="grid-3">
@@ -259,7 +260,11 @@ function InfoTab({ e, set }) {
             </div>
           ))}
         </div>
-        {e.video && <p>Vidéo : {e.video} <RemoveButton what="la vidéo" className="link-btn" label="retirer" onConfirm={() => set('video', '')} /></p>}
+        <label className="lbl">Vidéo de l’excursion (lien YouTube ou Vimeo, ou fichier MP4 déposé ci-dessus)
+          <input className="inp" placeholder="https://www.youtube.com/watch?v=…" value={e.video || ''} onChange={(ev) => set('video', ev.target.value.trim())} />
+        </label>
+        {e.video && !parseVideo(e.video) && <p className="alert alert--info">Lien non reconnu : utilisez un lien YouTube, Vimeo ou un fichier .mp4.</p>}
+        {e.video && <div className="row"><RemoveButton what="la vidéo" className="btn btn--danger-outline btn-sm" label="Retirer la vidéo" onConfirm={() => set('video', '')} /></div>}
       </div>
     </div>
   );

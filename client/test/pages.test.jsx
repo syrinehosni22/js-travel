@@ -55,6 +55,21 @@ describe('site public', () => {
     await waitFor(() => expect(screen.getByText(/Tarif groupe appliqué/)).toBeTruthy());
     expect(screen.getAllByText(/240/).length).toBeGreaterThan(0);
   });
+  it('fiche excursion : espace vidéo YouTube, chargé au clic', async () => {
+    routes['/api/excursions/excursion-carthage-sidi-bou-said'] = { ...excursion, video: 'https://youtu.be/dQw4w9WgXcQ' };
+    try {
+      const { container } = renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
+      expect(await screen.findByRole('heading', { name: 'Vidéo' })).toBeTruthy();
+      expect(container.querySelector('iframe[src*="youtube"]')).toBeNull();
+      fireEvent.click(screen.getByRole('button', { name: /Voir la vidéo/ }));
+      await waitFor(() => expect(container.querySelector('iframe[src*="youtube-nocookie.com/embed/dQw4w9WgXcQ"]')).toBeTruthy());
+    } finally { routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
+  });
+  it('fiche excursion sans vidéo : pas d’espace vidéo', async () => {
+    renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
+    expect(await screen.findByRole('heading', { level: 1 })).toBeTruthy();
+    expect(screen.queryByRole('heading', { name: 'Vidéo' })).toBeNull();
+  });
   it('catalogue, transferts, panier, contact, FAQ s’affichent', async () => {
     for (const [url, text] of [['/fr/excursions', /^1 excursion$/], ['/fr/transferts', /Transferts privés/], ['/fr/panier', /Votre panier est vide/], ['/fr/contact', /J’accepte que mes données/], ['/fr/faq', /Q \?/]]) {
       const { unmount } = renderAt(url);
