@@ -46,10 +46,12 @@ export const adminApi = Object.fromEntries(['get', 'post', 'put', 'patch', 'del'
   return call.catch((e) => { if (e.status === 401) { adminToken.set(null); window.location.href = '/admin/login'; } throw e; });
 }]));
 
-/** Envoi de fichiers depuis l'admin (photos, vidéos MP4). Renvoie [{ url, name, size }]. */
-export async function adminUpload(files) {
+/** Envoi de fichiers depuis l'admin (photos, vidéos MP4). Renvoie [{ url, name, size }].
+ *  Avec `onProgress`, l'avancement (0 à 100 %) est remonté pendant l'envoi. */
+export async function adminUpload(files, { onProgress } = {}) {
   const fd = new FormData();
   [...files].forEach((f) => fd.append('files', f));
+  if (onProgress) return uploadWithProgress(fd, files.length, onProgress);
   let res;
   try { res = await fetch(`${API_URL}/api/admin/uploads`, { method: 'POST', headers: { Authorization: `Bearer ${adminToken.get()}` }, body: fd }); }
   catch { throw new ApiError(0, { error: 'NETWORK' }); }
@@ -57,6 +59,26 @@ export async function adminUpload(files) {
   if (!res.ok) throw new ApiError(res.status, data);
   if (!Array.isArray(data) || data.length < files.length) throw new ApiError(400, { error: 'BAD_FILE' });
   return data;
+}
+
+function uploadWithProgress(fd, count, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}/api/admin/uploads`);
+    xhr.setRequestHeader('Authorization', `Bearer ${adminToken.get()}`);
+    xhr.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(Math.min(100, Math.round((e.loaded / e.total) * 100))); };
+    xhr.onerror = () => reject(new ApiError(0, { error: 'NETWORK' }));
+    xhr.onload = () => {
+      let data = null;
+      try { data = JSON.parse(xhr.responseText); } catch { /* réponse non JSON (ex. 413 de nginx) */ }
+      if (xhr.status === 413) return reject(new ApiError(413, { error: 'TOO_LARGE' }));
+      if (xhr.status < 200 || xhr.status >= 300) return reject(new ApiError(xhr.status, data));
+      if (!Array.isArray(data) || data.length < count) return reject(new ApiError(400, { error: 'BAD_FILE' }));
+      onProgress(100);
+      resolve(data);
+    };
+    xhr.send(fd);
+  });
 }
 
 /** Téléchargement authentifié (CSV) */

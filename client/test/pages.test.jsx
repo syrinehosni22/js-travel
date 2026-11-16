@@ -108,6 +108,28 @@ describe('site public', () => {
       expect(screen.getAllByText(/220/).length).toBeGreaterThan(0);
     } finally { routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
   });
+  it('accueil : onglet « Sur mesure » → page sur mesure avec le projet prérempli', async () => {
+    renderAt('/fr');
+    fireEvent.click(await screen.findByRole('tab', { name: 'Sur mesure' }));
+    fireEvent.change(screen.getByLabelText('Votre projet'), { target: { value: 'Sahara 3 jours' } });
+    fireEvent.change(screen.getByLabelText('Durée (jours)'), { target: { value: '3' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Demander un devis' }));
+    const msg = await screen.findByLabelText(/Message/);
+    expect(msg.value).toContain('Votre projet : Sahara 3 jours');
+    expect(msg.value).toContain('Durée (jours) : 3');
+  });
+  it('fiche excursion : indicateur de chargement sur la vidéo jusqu’à ce qu’elle soit prête', async () => {
+    routes['/api/excursions/excursion-carthage-sidi-bou-said'] = { ...excursion, videos: ['/uploads/a.mp4'] };
+    try {
+      const { container } = renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
+      await screen.findByRole('heading', { name: 'Vidéo' });
+      expect(container.querySelector('.video-loader')).toBeTruthy();
+      fireEvent(container.querySelector('.gyg-videos video'), new Event('loadeddata'));
+      await waitFor(() => expect(container.querySelector('.video-loader')).toBeNull());
+      fireEvent(container.querySelector('.gyg-videos video'), new Event('waiting'));
+      await waitFor(() => expect(container.querySelector('.video-loader')).toBeTruthy());
+    } finally { routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
+  });
   it('fiche excursion sans vidéo : pas d’espace vidéo', async () => {
     renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
     expect(await screen.findByRole('heading', { level: 1 })).toBeTruthy();

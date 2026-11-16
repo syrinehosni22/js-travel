@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
@@ -11,7 +12,19 @@ export default function Contact({ custom }) {
   const { t } = useTranslation();
   const { lang, settings } = useApp();
   const c = settings?.contact || {};
-  const [f, setF] = useState({ name: '', email: '', phone: '', subject: custom ? t('custom.title') : '', message: '', consent: false, website: '' });
+  const [params] = useSearchParams();
+  // Projet saisi dans l'onglet « Sur mesure » de l'accueil : message prérempli
+  const prefill = () => {
+    if (!custom) return '';
+    const lines = [
+      params.get('project') && `${t('search.project')} : ${params.get('project')}`,
+      params.get('date') && `${t('search.arrival')} : ${params.get('date')}`,
+      params.get('days') && `${t('search.days')} : ${params.get('days')}`,
+      params.get('people') && `${t('search.people')} : ${params.get('people')}`,
+    ].filter(Boolean);
+    return lines.length ? `${lines.join('\n')}\n\n` : '';
+  };
+  const [f, setF] = useState(() => ({ name: '', email: '', phone: '', subject: custom ? t('custom.title') : '', message: prefill(), consent: false, website: '' }));
   const [state, setState] = useState({ sent: false, error: null, sending: false });
   const set = (k) => (e) => setF({ ...f, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value });
   async function submit(e) {

@@ -100,7 +100,8 @@ button, input, select { font: inherit; color: inherit; }
 /* ---------- Recherche ---------- */
 .search { position: relative; z-index: 2; margin-top: -64px; }
 .search__card { background: #fff; border-radius: 20px; box-shadow: var(--shadow); padding: 22px; }
-.search__tabs { display: flex; gap: 6px; margin-bottom: 16px; }
+.search__tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.search__grow { flex: 2 1 260px; }
 .search__tab { min-height: 44px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--bg-alt); font-weight: 600; cursor: pointer; }
 .search__tab[aria-selected="true"] { background: var(--green); color: #fff; }
 .search__form { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; }
@@ -441,7 +442,12 @@ button, input, select { font: inherit; color: inherit; }
 .gyg-sec .timeline li { display: flex; gap: 12px; flex-wrap: wrap; }
 .gyg-videos { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); align-items: start; margin-top: 14px; }
 .gyg-video { aspect-ratio: 16 / 9; width: 100%; }
-.gyg-video__item { min-width: 0; display: flex; justify-content: center; background: #000; border-radius: var(--radius-sm); overflow: hidden; }
+.gyg-video__item { position: relative; min-width: 0; display: flex; justify-content: center; background: #000; border-radius: var(--radius-sm); overflow: hidden; }
+/* Indicateur de chargement de la vidéo (ne bloque pas les commandes du lecteur) */
+.video-loader { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; background: rgba(0,0,0,.25); }
+.video-loader__spin { width: 46px; height: 46px; border-radius: 50%; border: 4px solid rgba(255,255,255,.3); border-top-color: #fff; animation: video-spin .8s linear infinite; }
+@keyframes video-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .video-loader__spin { animation-duration: 2.4s; } }
 /* Format réel de la vidéo (--r = largeur / hauteur), sans dépasser 75 % de la hauteur de l'écran */
 .gyg-video__file { display: block; aspect-ratio: var(--r, 1.7778); width: min(100%, calc(75vh * var(--r, 1.7778))); width: min(100%, calc(75svh * var(--r, 1.7778))); max-height: 75svh; height: auto; background: #000; object-fit: contain; }
 @media (max-width: 640px) {
@@ -533,6 +539,8 @@ button, input, select { font: inherit; color: inherit; }
   .hero h1 { font-size: 38px; }
   .hero p { font-size: 16px; }
   .search__card { padding: 16px; border-radius: 16px; }
+  .search__tabs { flex-wrap: nowrap; gap: 4px; }
+  .search__tab { flex: 1 1 0; padding: 0 6px; font-size: 15px; white-space: nowrap; }
   .search__form .btn { width: 100%; }
   .field input, .field select, .form textarea, .field textarea { font-size: 16px; } /* pas de zoom iPhone */
   .page-head { padding: 36px 0 28px; }

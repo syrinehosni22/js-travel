@@ -77,11 +77,16 @@ function Collapsible({ text }) {
 
 /** Vidéo envoyée : garde son format d'origine (vertical de téléphone ou horizontal), sans déborder de l'écran */
 function FileVideo({ src, title }) {
+  const { t } = useTranslation();
   const [ratio, setRatio] = useState(16 / 9);
+  const [loading, setLoading] = useState(true);
+  const done = () => setLoading(false);
   return (
-    <div className={`gyg-video__item${ratio < 1 ? ' is-portrait' : ''}`}>
+    <div className={`gyg-video__item${ratio < 1 ? ' is-portrait' : ''}`} aria-busy={loading}>
       <video className="gyg-video__file" style={{ '--r': ratio }} src={`${src}#t=0.1`} controls preload="metadata" playsInline aria-label={title}
-        onLoadedMetadata={(ev) => { const v = ev.currentTarget; if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight); }} />
+        onLoadedMetadata={(ev) => { const v = ev.currentTarget; if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight); done(); }}
+        onLoadedData={done} onCanPlay={done} onPlaying={done} onSuspend={done} onError={done} onWaiting={() => setLoading(true)} />
+      {loading && <span className="video-loader" role="status"><span className="video-loader__spin" aria-hidden="true" /><span className="sr-only">{t('common.loading')}</span></span>}
     </div>
   );
 }
