@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { computeExcursionPrice } from '../lib/pricing.js';
+import { computeExcursionPrice, capacityOf } from '../lib/pricing.js';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { path, langName } from '../i18n.js';
@@ -49,7 +49,7 @@ export default function PriceCalculator({ excursion }) {
   const { lang, settings, money, addToCart, promoCode } = useApp();
   const nav = useNavigate();
   const pr = excursion.pricing || {};
-  const maxGroup = pr.maxGroup || 8;
+  const maxGroup = capacityOf(excursion) || 8;
   const [date, setDate] = useState('');
   const [p, setP] = useState({ adult: 2, child: 0, infant: 0 });
   const [zone, setZone] = useState(pr.zones?.[0]?.key || '');
@@ -105,6 +105,7 @@ export default function PriceCalculator({ excursion }) {
         </div>
 
         {price.overCapacity && <div className="alert alert--info">{t('calc.overCapacity', { n: maxGroup })} — <Link to={path(lang, 'custom')}>{t('calc.quote')}</Link></div>}
+        {!price.quote && price.nextTier && <div className="alert alert--info">{t('price.nextTier', { count: price.nextTier.missing, n: price.nextTier.n, price: money(price.nextTier.price) })}</div>}
         {!price.quote && price.belowThreshold && <div className="alert alert--warn">{t('price.missing', { count: price.missing, price: money(price.unitReducedPrice) })}</div>}
         {!price.quote && !price.belowThreshold && pr.mode === 'minimum' && total > 0 && <div className="alert alert--ok">{t('price.reached', { price: money(price.unitReducedPrice) })}</div>}
 

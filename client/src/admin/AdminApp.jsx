@@ -12,6 +12,7 @@ import Planning from './Planning.jsx';
 import { ExcursionList, ExcursionEdit } from './Excursions.jsx';
 import TransfersAdmin from './Transfers.jsx';
 import { Promos, Partners, Users, Messages, Posts } from './Simple.jsx';
+import ReviewsAdmin from './Reviews.jsx';
 import Customers from './Customers.jsx';
 import Reports from './Reports.jsx';
 import SettingsAdmin from './Settings.jsx';
@@ -23,7 +24,7 @@ export const useAdmin = () => useContext(Ctx);
 
 const MENU = [
   ['', 'Tableau de bord', ['manager']], ['bookings', 'Réservations', ['manager', 'partner']], ['planning', 'Planning', ['manager', 'driver']],
-  ['home', 'Page d’accueil', ['manager', 'editor']], ['excursions', 'Excursions', ['manager', 'editor']], ['transfers', 'Transferts', ['manager']], ['promos', 'Promotions', ['manager']],
+  ['home', 'Page d’accueil', ['manager', 'editor']], ['excursions', 'Excursions', ['manager', 'editor']], ['reviews', 'Avis clients', ['manager', 'editor']], ['transfers', 'Transferts', ['manager']], ['promos', 'Promotions', ['manager']],
   ['partners', 'Partenaires', ['manager']], ['customers', 'Clients', ['manager']], ['posts', 'Blog', ['editor', 'manager']],
   ['messages', 'Messages', ['manager']], ['seo', 'SEO', ['editor', 'manager']], ['reports', 'Rapports', ['manager', 'partner']],
   ['settings', 'Paramètres', ['admin']], ['users', 'Équipe', ['admin']],
@@ -92,6 +93,7 @@ export default function AdminApp() {
               <Route path="customers" element={<Customers />} />
               <Route path="posts" element={<Posts />} />
               <Route path="messages" element={<Messages />} />
+              <Route path="reviews" element={<ReviewsAdmin />} />
               <Route path="seo" element={<SeoBoard />} />
               <Route path="reports" element={<Reports />} />
               <Route path="settings" element={<SettingsAdmin />} />

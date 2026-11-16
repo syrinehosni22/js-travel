@@ -78,7 +78,8 @@ export function discountRate({ promo, early, partner, date, today = new Date(), 
 
 /**
  * excursion.pricing = {
- *   mode: 'per_person' | 'minimum' | 'per_vehicle' | 'group_flat' | 'quote',
+ *   mode: 'per_person' | 'minimum' | 'per_count' | 'per_vehicle' | 'group_flat' | 'quote',
+ *   byCount: [{ n: 1, price: 120 }, { n: 2, price: 70 }, ...],  // mode per_count : prix / pers. selon la taille du groupe
  *   seasons: { low: { minimum, adult }, mid: {...}, high: {...} },   // M et p par saison
  *   childDiscount: 0,    infantDiscount: 0,   // réductions sur le prix réduit (1 = gratuit)
  *   childAges: [4, 11],  infantAges: [0, 3],
@@ -93,6 +94,33 @@ export function discountRate({ promo, early, partner, date, today = new Date(), 
  * booking = { date, participants: { adult, child, infant }, zone, guideLang, options: ['lunch'] }
  * ctx = { calendar, discount: { rate, source }, rate: 1, currency: 'EUR' }
  */
+/** Mode « selon le nombre de personnes » : lignes valides, triées par nombre de personnes. */
+export function countTable(pr = {}) {
+  return (pr.byCount || [])
+    .filter((r) => r && +r.n > 0 && r.price !== '' && r.price != null && !Number.isNaN(+r.price))
+    .map((r) => ({ n: +r.n, price: +r.price }))
+    .sort((a, b) => a.n - b.n);
+}
+
+/** Prix par personne pour un groupe de n personnes (ligne la plus proche en dessous si n n'est pas renseigné). */
+export function priceForCount(pr, n) {
+  const rows = countTable(pr);
+  if (!rows.length) return null;
+  let best = rows[0];
+  for (const r of rows) if (r.n <= n) best = r;
+  return best.price;
+}
+
+/** Nombre maximum de personnes : dernière ligne du tableau en mode per_count, sinon maxGroup. */
+export function capacityOf(excursion) {
+  const pr = excursion?.pricing || {};
+  if (pr.mode === 'per_count') {
+    const rows = countTable(pr);
+    if (rows.length) return rows[rows.length - 1].n;
+  }
+  return pr.maxGroup;
+}
+
 export function computeExcursionPrice(excursion, booking, ctx = {}) {
   const pr = excursion.pricing || {};
   const p = booking.participants || {};
@@ -110,12 +138,14 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
 
   if (pr.mode === 'quote') return { ...result, quote: true };
   if (n === 0 || adult === 0) return { ...result, error: 'NO_ADULT' };
-  if (pr.maxGroup && n > pr.maxGroup) return { ...result, quote: true, overCapacity: true };
+  const cap = capacityOf(excursion);
+  if (cap && n > cap) return { ...result, quote: true, overCapacity: true };
 
   const pAdult = +s.adult || 0;
   const pChild = round2(pAdult * (1 - (pr.childDiscount ?? 0)));
   const pInfant = round2(pAdult * (1 - (pr.infantDiscount ?? 0)));
   let base = 0;
+  let unitPrice = pAdult;
   let vehicles = Math.ceil(n / ((pr.vehicle && pr.vehicle.capacity) || 8));
 
   switch (pr.mode) {
@@ -137,6 +167,21 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
           lines.push({ key: 'minimum', qty: payers, amount: round2(M) });
         }
       }
+      break;
+    }
+    case 'per_count': {
+      const unit = priceForCount(pr, n);
+      if (unit == null) return { ...result, quote: true };
+      unitPrice = unit;
+      const uc = round2(unit * (1 - (pr.childDiscount ?? 0)));
+      const ui = round2(unit * (1 - (pr.infantDiscount ?? 0)));
+      lines.push({ key: 'adult', qty: adult, unit, amount: round2(adult * unit) });
+      if (child) lines.push({ key: 'child', qty: child, unit: uc, amount: round2(child * uc) });
+      if (infant) lines.push({ key: 'infant', qty: infant, unit: ui, amount: round2(infant * ui) });
+      base = adult * unit + child * uc + infant * ui;
+      // Prochain palier moins cher (« dès 4 personnes : 55 € / pers. »)
+      const next = countTable(pr).find((r) => r.n > n && r.price < unit);
+      if (next) result.nextTier = { n: next.n, price: next.price, missing: next.n - n };
       break;
     }
     case 'per_vehicle': {
@@ -200,12 +245,12 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
     totalEur,
     total: round2(totalEur * fx),
     perPerson: payers ? round2((totalEur * fx) / payers) : 0,
-    unitReducedPrice: pAdult,
+    unitReducedPrice: unitPrice,
   };
 }
 
 /** Tableau « seuil et prix par taille de groupe » affiché dans l'admin (§3.6). */
-export function groupTable(excursion, season = 'mid', max = excursion.pricing?.maxGroup || 8) {
+export function groupTable(excursion, season = 'mid', max = capacityOf(excursion) || 8) {
   const rows = [];
   for (let n = 1; n <= max; n++) {
     const r = computeExcursionPrice(excursion, { participants: { adult: n } }, { calendar: { seasons: [{ name: season, from: '01-01', to: '12-31' }] } });
@@ -230,6 +275,12 @@ export function fromPrice(excursion, season = 'mid') {
   const s = (pr.seasons && (pr.seasons[season] || pr.seasons.mid)) || {};
   if (pr.mode === 'quote') return { quote: true };
   if (pr.mode === 'per_vehicle') return { amount: s.vehicle ?? pr.vehicle?.price, per: 'vehicle' };
+  if (pr.mode === 'per_count') {
+    const rows = countTable(pr);
+    if (!rows.length) return { quote: true };
+    const best = rows.reduce((a, b) => (b.price < a.price ? b : a));
+    return { amount: best.price, per: 'person', from: best.n > 1 ? best.n : null };
+  }
   if (pr.mode === 'group_flat') return { amount: s.flat ?? pr.flat?.price, per: 'group', upTo: pr.flat?.upTo };
   return { amount: s.adult, per: 'person', from: pr.mode === 'minimum' && s.adult ? Math.ceil(s.minimum / s.adult) : null };
 }

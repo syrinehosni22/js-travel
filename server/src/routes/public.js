@@ -3,7 +3,8 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { fromPrice, seasonFor, computeExcursionPrice } from '../lib/pricing.js';
 import { cleanText } from '../services/text.js';
-import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User } from '../models/index.js';
+import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User, Review } from '../models/index.js';
+import { publicReview } from '../services/reviews.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';
 import { notifyBookingCreated, notifyStatus, sendMail } from '../services/notify.js';
@@ -113,6 +114,35 @@ r.get('/excursions/:slug', async (req, res) => {
   }
   const related = await Excursion.find({ _id: { $ne: e._id }, published: true, publishedLangs: l, $or: [{ category: e.category }, { departureCities: { $in: e.departureCities } }] }).limit(3).lean();
   res.json({ ...localize(e, l, true), related: related.map((x) => localize(x, l)) });
+});
+
+/* ---------- Avis clients (étoiles + commentaire) ---------- */
+const reviewLimiter = rateLimit({ windowMs: 60 * 60 * 1000, limit: 5, standardHeaders: true, legacyHeaders: false });
+const objectId = z.string().regex(/^[a-f\d]{24}$/i);
+
+r.get('/excursions/:id/reviews', async (req, res) => {
+  const id = objectId.parse(req.params.id);
+  const list = await Review.find({ excursion: id, status: 'approved' }).sort({ createdAt: -1 }).limit(100).lean();
+  res.json(list.map(publicReview));
+});
+
+r.post('/excursions/:id/reviews', reviewLimiter, async (req, res) => {
+  if (req.body?.website) throw new HttpError(400, 'SPAM'); // champ piège rempli = robot
+  const id = objectId.parse(req.params.id);
+  const d = z.object({
+    name: z.string().trim().min(2).max(60),
+    email: z.string().trim().email().max(120).optional().or(z.literal('')),
+    rating: z.coerce.number().int().min(1).max(5),
+    comment: z.string().trim().max(2000).optional().default(''),
+    lang: z.string().optional(),
+  }).parse(req.body);
+  const e = await Excursion.findOne({ _id: id, published: true }).select('title').lean();
+  if (!e) throw new HttpError(404, 'NOT_FOUND');
+  const review = await Review.create({ ...d, name: cleanText(d.name), comment: cleanText(d.comment), email: d.email || undefined, lang: LANGS.includes(d.lang) ? d.lang : undefined, excursion: id });
+  const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  sendMail({ to: config.teamEmail, subject: `Nouvel avis ${'★'.repeat(d.rating)} : ${e.title?.fr || ''}`,
+    html: `<p><b>${esc(review.name)}</b> — ${d.rating}/5</p><p>${esc(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis ».</p>` });
+  res.status(201).json({ ok: true, pending: true });
 });
 
 r.get('/excursions/:id/availability', async (req, res) => {

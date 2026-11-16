@@ -4,6 +4,7 @@ import { L, SeoByLang, TranslationStatus } from './common.js';
 export { Excursion } from './Excursion.js';
 export { Location, Zone, TransferConfig, TransferRoute } from './Transfer.js';
 export { Booking, Waitlist } from './Booking.js';
+export { Review } from './Review.js';
 
 /** Équipe : administrateur, gestionnaire, rédacteur, chauffeur, partenaire (§7.2) */
 export const ROLES = ['admin', 'manager', 'editor', 'driver', 'partner'];

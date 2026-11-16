@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate } from '../src/lib/pricing.js';
+import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate, capacityOf, countTable, priceForCount, fromPrice } from '../src/lib/pricing.js';
 
 const carthage = {
   pricing: {
@@ -67,4 +67,32 @@ test('transferts : grille par zones, choix du véhicule, nuit et aller-retour', 
   assert.equal(q[0].totalEur, 72);
   const rt = computeTransferQuotes(cfg, { fromZone: 'enfidha', toZone: 'sousse', passengers: { adult: 2 }, datetime: '2026-08-14T12:00', roundTrip: true, returnDatetime: '2026-08-21T12:00' });
   assert.equal(rt[0].totalEur, 40 + 36);
+});
+
+/* ---------- Mode « selon le nombre de personnes » ---------- */
+const byCount = {
+  pricing: { mode: 'per_count', childDiscount: 0.5, infantDiscount: 1, byCount: [{ n: 1, price: 120 }, { n: 2, price: 70 }, { n: 3, price: 70 }, { n: 4, price: 55 }, { n: 6, price: 50 }] },
+};
+test('per_count : prix par personne selon la taille du groupe', () => {
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 1 } }).totalEur, 120);
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 2 } }).totalEur, 140);
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 4 } }).totalEur, 220);
+  // 5 n'est pas renseigné : on prend la ligne du dessous (4 → 55 €)
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 5 } }).totalEur, 275);
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 6 } }).perPerson, 50);
+});
+test('per_count : enfants et bébés avec réduction, comptés dans la taille du groupe', () => {
+  const r = computeExcursionPrice(byCount, { participants: { adult: 2, child: 1, infant: 1 } });
+  assert.equal(r.unitReducedPrice, 55);        // groupe de 4
+  assert.equal(r.totalEur, 55 * 2 + 27.5 + 0);
+});
+test('per_count : capacité = dernier nombre, au-delà devis ; palier suivant', () => {
+  assert.equal(capacityOf(byCount), 6);
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 7 } }).overCapacity, true);
+  assert.deepEqual(computeExcursionPrice(byCount, { participants: { adult: 2 } }).nextTier, { n: 4, price: 55, missing: 2 });
+  assert.equal(computeExcursionPrice(byCount, { participants: { adult: 6 } }).nextTier, undefined);
+  assert.deepEqual(fromPrice(byCount), { amount: 50, per: 'person', from: 6 });
+  assert.equal(priceForCount({ byCount: [] }, 3), null);
+  assert.equal(computeExcursionPrice({ pricing: { mode: 'per_count', byCount: [] } }, { participants: { adult: 2 } }).quote, true);
+  assert.deepEqual(countTable({ byCount: [{ n: 3, price: 10 }, { n: 1, price: '' }, { n: 2, price: 20 }] }).map((r) => r.n), [2, 3]);
 });
