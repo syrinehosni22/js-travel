@@ -104,3 +104,13 @@ test('per_count : un total saisi (200 € pour 3) est respecté au centime', () 
   assert.equal(computeExcursionPrice(ex, { participants: { adult: 7 } }).totalEur, 500);
   assert.equal(computeExcursionPrice(ex, { participants: { adult: 2, child: 1 } }).totalEur, 200);
 });
+test('prix affiché sur la carte : prioritaire sur le calcul, vide = automatique', () => {
+  const base = { pricing: { mode: 'per_count', byCount: [{ n: 1, price: 120 }, { n: 6, price: 50 }] } };
+  assert.deepEqual(fromPrice(base), { amount: 50, per: 'person', from: 6 });
+  assert.deepEqual(fromPrice({ pricing: { ...base.pricing, cardPrice: { amount: 45, per: 'person', from: 4 } } }), { amount: 45, per: 'person', from: 4, custom: true });
+  assert.deepEqual(fromPrice({ pricing: { ...base.pricing, cardPrice: { amount: 300, per: 'group' } } }), { amount: 300, per: 'group', from: null, custom: true });
+  assert.deepEqual(fromPrice({ pricing: { ...base.pricing, cardPrice: { amount: null } } }), { amount: 50, per: 'person', from: 6 });
+  assert.equal(fromPrice({ pricing: { mode: 'quote', cardPrice: { amount: 80 } } }).amount, 80);
+  // le calcul de la réservation n'est pas modifié
+  assert.equal(computeExcursionPrice({ pricing: { ...base.pricing, cardPrice: { amount: 1 } } }, { participants: { adult: 1 } }).totalEur, 120);
+});

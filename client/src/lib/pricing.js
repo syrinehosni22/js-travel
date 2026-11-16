@@ -272,6 +272,11 @@ export function minimumWarnings(excursion) {
 /** Prix « à partir de » pour les cartes du catalogue : prix réduit + seuil. */
 export function fromPrice(excursion, season = 'mid') {
   const pr = excursion.pricing || {};
+  // Prix choisi dans l'admin pour la carte : prioritaire sur le calcul automatique
+  const cp = pr.cardPrice;
+  if (cp && cp.amount != null && cp.amount !== '' && +cp.amount > 0) {
+    return { amount: +cp.amount, per: ['person', 'group', 'vehicle'].includes(cp.per) ? cp.per : 'person', from: +cp.from > 1 ? +cp.from : null, custom: true };
+  }
   const s = (pr.seasons && (pr.seasons[season] || pr.seasons.mid)) || {};
   if (pr.mode === 'quote') return { quote: true };
   if (pr.mode === 'per_vehicle') return { amount: s.vehicle ?? pr.vehicle?.price, per: 'vehicle' };
