@@ -10,6 +10,7 @@ import NotFound from './NotFound.jsx';
 import RouteMap from '../components/RouteMap.jsx';
 import { parseVideo } from '../components/About.jsx';
 import { allVideos } from '../lib/videos.js';
+import Reviews from '../components/Reviews.jsx';
 import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
@@ -74,13 +75,24 @@ function Collapsible({ text }) {
   );
 }
 
+/** Vidéo envoyée : garde son format d'origine (vertical de téléphone ou horizontal), sans déborder de l'écran */
+function FileVideo({ src, title }) {
+  const [ratio, setRatio] = useState(16 / 9);
+  return (
+    <div className={`gyg-video__item${ratio < 1 ? ' is-portrait' : ''}`}>
+      <video className="gyg-video__file" style={{ '--r': ratio }} src={`${src}#t=0.1`} controls preload="metadata" playsInline aria-label={title}
+        onLoadedMetadata={(ev) => { const v = ev.currentTarget; if (v.videoWidth && v.videoHeight) setRatio(v.videoWidth / v.videoHeight); }} />
+    </div>
+  );
+}
+
 /** Espace vidéo de la fiche : affiche l'aperçu, la vidéo ne se charge qu'au clic */
 function VideoBlock({ url, poster, title }) {
   const { t } = useTranslation();
   const [playing, setPlaying] = useState(false);
   const video = parseVideo(url);
   if (!video) return null;
-  if (video.kind === 'file') return <video className="gyg-video__file" src={`${video.src}#t=0.1`} controls preload="metadata" playsInline aria-label={title} />;
+  if (video.kind === 'file') return <FileVideo src={video.src} title={title} />;
   const cover = video.poster || poster;
   return (
     <div className="company__media gyg-video">
@@ -157,7 +169,7 @@ export default function ExcursionDetail() {
           <div className="row" style={{ gap: 8 }}>{e.badges?.map((b) => <span key={b} className={`tag tag--${b}`}>{t(`badge.${b}`)}</span>)}</div>
           <h1>{seo.h1 || e.title}</h1>
           <div className="gyg-head__meta">
-            {e.rating?.value && <span className="stars"><Icon name="star" size={16} /> <b>{e.rating.value}</b> ({t('detail.reviewsN', { n: e.rating.count })})</span>}
+            {e.rating?.value && <a href="#reviews" className="stars"><Icon name="star" size={16} /> <b>{e.rating.value}</b> ({t('detail.reviewsN', { n: e.rating.count })})</a>}
             {e.durationLabel && <span><Icon name="clock" size={16} /> {e.durationLabel}</span>}
             {cities.length > 0 && <span><Icon name="pin" size={16} /> {cities.join(', ')}</span>}
           </div>
@@ -278,6 +290,8 @@ export default function ExcursionDetail() {
                 <div className="faq" style={{ margin: 0 }}>{e.faq.map((f, i) => <details key={i}><summary>{f.q}</summary><p>{f.a}</p></details>)}</div>
               </section>
             )}
+
+            <Reviews excursionId={e.id} rating={e.rating} lang={lang} />
 
             <section className="gyg-sec gyg-contact">
               <strong>{t('detail.contact')}</strong>

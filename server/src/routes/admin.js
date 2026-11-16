@@ -4,7 +4,8 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { authenticator } from 'otplib';
 import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
-import { User, Excursion, Booking, Location, Zone, TransferConfig, TransferRoute, Promo, Partner, Settings, Post, Message, AuditLog, Redirect, Customer, Waitlist } from '../models/index.js';
+import { User, Excursion, Booking, Location, Zone, TransferConfig, TransferRoute, Promo, Partner, Settings, Post, Message, AuditLog, Redirect, Customer, Waitlist, Review } from '../models/index.js';
+import { refreshRating } from '../services/reviews.js';
 import { auth, allow, audit, signToken } from '../middleware.js';
 import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
@@ -438,6 +439,27 @@ crud(Promo, 'promos');
 crud(Partner, 'partners');
 crud(Post, 'posts', ['editor', 'manager']);
 crud(Message, 'messages');
+
+/* ================= Avis clients : modération ================= */
+r.get('/reviews', allow('manager', 'editor'), async (req, res) => {
+  const q = ['pending', 'approved', 'rejected'].includes(req.query.status) ? { status: req.query.status } : {};
+  const list = await Review.find(q).sort({ createdAt: -1 }).limit(500).populate('excursion', 'title slug').lean();
+  const counts = Object.fromEntries((await Review.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }])).map((x) => [x._id, x.n]));
+  res.json({ list, counts });
+});
+r.put('/reviews/:id', allow('manager', 'editor'), async (req, res) => {
+  const d = z.object({ status: z.enum(['pending', 'approved', 'rejected']).optional(), reply: z.string().max(2000).optional() }).parse(req.body);
+  const rv = await Review.findByIdAndUpdate(req.params.id, d, { new: true });
+  if (!rv) throw new HttpError(404, 'NOT_FOUND');
+  await refreshRating(rv.excursion);
+  await audit(req, 'update', 'reviews', rv._id);
+  res.json(rv);
+});
+r.delete('/reviews/:id', allow('manager'), async (req, res) => {
+  const rv = await Review.findByIdAndDelete(req.params.id);
+  if (rv) { await refreshRating(rv.excursion); await audit(req, 'delete', 'reviews', rv._id); }
+  res.json({ ok: true });
+});
 crud(Waitlist, 'waitlist');
 
 /* ================= Clients (RGPD) ================= */
