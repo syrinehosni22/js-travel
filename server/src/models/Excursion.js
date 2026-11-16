@@ -21,6 +21,7 @@ const PricingSchema = new mongoose.Schema({
   maxGroup: { type: Number, default: 8 },
   byCount: [{ _id: false, n: Number, price: Number }],   // mode per_count : prix / pers. pour chaque nombre de personnes
   weekendSupplement: { type: Number, default: 0 },
+  cardPrice: { amount: Number, per: { type: String, enum: ['person', 'group', 'vehicle'] }, from: Number },   // prix « à partir de » affiché sur la carte (vide = automatique)
   zones: [{ _id: false, key: String, label: String, fee: Number }],
   guideLanguages: [{ _id: false, lang: String, fee: Number }],
   options: [{ _id: false, key: String, label: L(), description: L(), price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'] } }],   // extras payants

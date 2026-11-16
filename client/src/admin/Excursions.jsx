@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { computeExcursionPrice, groupTable, minimumWarnings, countTable } from '../lib/pricing.js';
+import { computeExcursionPrice, groupTable, minimumWarnings, countTable, fromPrice } from '../lib/pricing.js';
 import { seoScore, seoErrors, slugify } from '../lib/seo.js';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
 import RouteMap, { roadPath, searchPlace } from '../components/RouteMap.jsx';
@@ -473,6 +473,30 @@ function CountPricing({ rows, onChange }) {
   );
 }
 
+/** Prix « à partir de » affiché sur la carte de l'excursion (catalogue, accueil, haut du calculateur) */
+function CardPrice({ e, set }) {
+  const cp = e.pricing?.cardPrice || {};
+  const P = (k) => `pricing.cardPrice.${k}`;
+  const auto = fromPrice({ ...e, pricing: { ...e.pricing, cardPrice: undefined } });
+  const unit = (per) => (per === 'vehicle' ? '/ véhicule' : per === 'group' ? '/ groupe' : '/ pers.');
+  const autoText = auto.quote || auto.amount == null ? 'Sur devis' : `${eur(auto.amount)} ${unit(auto.per)}${auto.from > 1 ? ` · dès ${auto.from} personnes` : ''}`;
+  const active = cp.amount != null && cp.amount !== '' && +cp.amount > 0;
+  const shown = fromPrice(e);
+  return (
+    <fieldset className="panel stack" style={{ gap: 10 }}>
+      <legend><strong>Prix affiché sur la carte</strong></legend>
+      <p className="muted" style={{ margin: 0 }}>C’est le prix « À partir de » visible sur la carte de l’excursion (accueil, catalogue) et en haut du calculateur. Laissez vide pour le calcul automatique ({autoText}). Le prix réellement payé reste celui des tarifs ci-dessous.</p>
+      <div className="row" style={{ alignItems: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+        <label className="lbl" style={{ width: 150 }}>Prix (€)<input className="inp" type="number" min="0" step="0.01" placeholder={auto.amount != null ? String(auto.amount) : ''} value={cp.amount ?? ''} onChange={(ev) => set(P('amount'), ev.target.value === '' ? null : +ev.target.value)} /></label>
+        <label className="lbl" style={{ width: 170 }}>Par<select className="inp" value={cp.per || 'person'} onChange={(ev) => set(P('per'), ev.target.value)}><option value="person">personne</option><option value="group">groupe</option><option value="vehicle">véhicule</option></select></label>
+        <label className="lbl" style={{ width: 210 }}>À partir de … personnes (facultatif)<input className="inp" type="number" min="1" value={cp.from ?? ''} onChange={(ev) => set(P('from'), ev.target.value === '' ? null : +ev.target.value)} /></label>
+        {active && <button type="button" className="btn btn--outline btn-sm" onClick={() => set('pricing.cardPrice', { amount: null, per: 'person', from: null })}>Revenir au calcul automatique</button>}
+      </div>
+      <div className="muted" style={{ fontSize: 14 }}>Aperçu de la carte : <b style={{ color: 'var(--ink, #101A31)' }}>{shown.quote || shown.amount == null ? 'Sur devis' : `${eur(shown.amount)} ${unit(shown.per)} TTC${shown.from > 1 ? ` · dès ${shown.from} personnes` : ''}`}</b>{active ? ' (prix choisi)' : ' (automatique)'}</div>
+    </fieldset>
+  );
+}
+
 function PricingTab({ e, set, id }) {
   const pr = e.pricing || {};
   const P = (k) => `pricing.${k}`;
@@ -495,6 +519,8 @@ function PricingTab({ e, set, id }) {
         </label>
         <label className="lbl">Supplément week-end (%)<input className="inp" type="number" value={pr.weekendSupplement ?? 0} onChange={(ev) => set(P('weekendSupplement'), +ev.target.value)} /></label>
       </div>
+
+      <CardPrice e={e} set={set} />
 
       {pr.mode === 'per_count' && <CountPricing rows={countTable(pr)} onChange={(rows) => set(P('byCount'), rows)} />}
 
