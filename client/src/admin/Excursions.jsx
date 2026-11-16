@@ -233,8 +233,9 @@ function InfoTab({ e, set }) {
     const urls = [];
     try {
       for (const [i, f] of vids.entries()) {
-        setUploading(`Envoi de la vidéo ${i + 1} sur ${vids.length}…`);
-        const [res] = await adminUpload([f]);
+        const label = `Envoi de la vidéo ${i + 1} sur ${vids.length} (${(f.size / 1048576).toFixed(0)} Mo)`;
+        setUploading({ label, pct: 0 });
+        const [res] = await adminUpload([f], { onProgress: (pct) => setUploading({ label, pct }) });
         urls.push(res.url);
       }
     } catch (x) { setUpErr(x); }
@@ -263,7 +264,13 @@ function InfoTab({ e, set }) {
         onDrop={(ev) => { ev.preventDefault(); setDrag(false); upload(ev.dataTransfer.files); }}>
         <strong>Photos et vidéos</strong>
         <p className="muted">Glissez-déposez vos photos et vidéos ici (photos JPG, PNG, WebP · vidéos MP4, WebM, MOV · 100 Mo max par fichier) ou <label className="link-btn" style={{ display: 'inline' }}>choisissez-les<input type="file" multiple accept="image/*,video/mp4,video/webm,video/quicktime" hidden onChange={(ev) => { upload(ev.target.files); ev.target.value = ''; }} /></label>. La première photo est l’image principale.</p>
-        {uploading && <p>{typeof uploading === 'string' ? uploading : 'Envoi…'}</p>}
+        {uploading && (typeof uploading === 'object' ? (
+          <div className="upload-progress" role="status" aria-live="polite">
+            <div className="row" style={{ justifyContent: 'space-between' }}><span>{uploading.label}</span><b>{uploading.pct < 100 ? `${uploading.pct} %` : 'Traitement…'}</b></div>
+            <div className="upload-progress__bar" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={uploading.pct} aria-label={uploading.label}><span style={{ width: `${uploading.pct}%` }} /></div>
+            <small className="muted">Gardez cette page ouverte jusqu’à la fin de l’envoi.</small>
+          </div>
+        ) : <p>Envoi…</p>)}
         <Err error={upErr} />
         <div className="grid-3">
           {(e.images || []).map((img, i) => (

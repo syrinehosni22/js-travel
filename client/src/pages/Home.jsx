@@ -50,6 +50,12 @@ function SearchBox() {
   const nav = useNavigate();
   const [tab, setTab] = useState('excursion');
   const [f, setF] = useState({ category: '', city: '', date: '', people: 2 });
+  const [c, setC] = useState({ project: '', date: '', days: '', people: 2 });
+  const submitCustom = (e) => {
+    e.preventDefault();
+    const q = new URLSearchParams(Object.entries(c).filter(([, v]) => v !== '' && v != null));
+    nav(`${path(lang, 'custom')}?${q}`);
+  };
   const submit = (e) => {
     e.preventDefault();
     const q = new URLSearchParams(Object.entries(f).filter(([, v]) => v !== '' && v != null));
@@ -59,7 +65,7 @@ function SearchBox() {
     <section className="search" aria-label={t('search.submit')}>
       <div className="container"><div className="search__card">
         <div className="search__tabs" role="tablist">
-          {['excursion', 'transfer'].map((k) => <button key={k} className="search__tab" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{t(`search.${k}`)}</button>)}
+          {['excursion', 'transfer', 'custom'].map((k) => <button key={k} className="search__tab" role="tab" aria-selected={tab === k} onClick={() => setTab(k)}>{t(`search.${k}`)}</button>)}
         </div>
         {tab === 'excursion' ? (
           <form className="search__form" onSubmit={submit}>
@@ -79,7 +85,17 @@ function SearchBox() {
             <label className="field">{t('search.people')}<input type="number" min="1" max="8" value={f.people} onChange={(e) => setF({ ...f, people: e.target.value })} /></label>
             <button className="btn btn--green" style={{ minHeight: 50, borderRadius: 12 }}>{t('search.submit')}</button>
           </form>
-        ) : <TransferForm compact />}
+        ) : tab === 'transfer' ? <TransferForm compact /> : (
+          <form className="search__form" onSubmit={submitCustom}>
+            <label className="field search__grow">{t('search.project')}
+              <input value={c.project} onChange={(e) => setC({ ...c, project: e.target.value })} placeholder={t('search.projectPh')} maxLength={200} />
+            </label>
+            <label className="field">{t('search.arrival')}<input type="date" value={c.date} onChange={(e) => setC({ ...c, date: e.target.value })} /></label>
+            <label className="field">{t('search.days')}<input type="number" min="1" max="30" value={c.days} onChange={(e) => setC({ ...c, days: e.target.value })} /></label>
+            <label className="field">{t('search.people')}<input type="number" min="1" max="200" value={c.people} onChange={(e) => setC({ ...c, people: e.target.value })} /></label>
+            <button className="btn btn--green" style={{ minHeight: 50, borderRadius: 12 }}>{t('search.quote')}</button>
+          </form>
+        )}
       </div></div>
     </section>
   );

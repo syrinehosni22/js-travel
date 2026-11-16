@@ -221,3 +221,8 @@ select.inp { text-overflow: ellipsis; }
 .follow-row:not(:has(input[aria-label="Nom affiché"])) { grid-template-columns: 170px minmax(0, 1fr) auto; }
 .follow-row__url.is-bad { border-color: #B42318; }
 @media (max-width: 640px) { .follow-row, .follow-row:not(:has(input[aria-label="Nom affiché"])) { grid-template-columns: 1fr; } }
+
+/* Barre d'avancement de l'envoi des vidéos */
+.upload-progress { display: grid; gap: 6px; padding: 12px 14px; border-radius: 12px; background: var(--bg-alt, #F6F3EC); }
+.upload-progress__bar { height: 10px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; }
+.upload-progress__bar span { display: block; height: 100%; border-radius: inherit; background: var(--green, #1F7A5A); transition: width .25s ease; }
