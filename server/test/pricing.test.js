@@ -96,3 +96,11 @@ test('per_count : capacité = dernier nombre, au-delà devis ; palier suivant', 
   assert.equal(computeExcursionPrice({ pricing: { mode: 'per_count', byCount: [] } }, { participants: { adult: 2 } }).quote, true);
   assert.deepEqual(countTable({ byCount: [{ n: 3, price: 10 }, { n: 1, price: '' }, { n: 2, price: 20 }] }).map((r) => r.n), [2, 3]);
 });
+test('per_count : un total saisi (200 € pour 3) est respecté au centime', () => {
+  const ex = { pricing: { mode: 'per_count', byCount: [{ n: 3, price: 200 / 3 }, { n: 7, price: 500 / 7 }] } };
+  const r = computeExcursionPrice(ex, { participants: { adult: 3 } });
+  assert.equal(r.totalEur, 200);
+  assert.equal(r.perPerson, 66.67);
+  assert.equal(computeExcursionPrice(ex, { participants: { adult: 7 } }).totalEur, 500);
+  assert.equal(computeExcursionPrice(ex, { participants: { adult: 2, child: 1 } }).totalEur, 200);
+});

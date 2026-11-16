@@ -389,13 +389,16 @@ function MapTab({ e, set }) {
  * Le remplissage en lot applique le même prix à plusieurs nombres d'un coup (ex. de 3 à 5 personnes).
  */
 function CountPricing({ rows, onChange }) {
-  const [bulk, setBulk] = useState({ from: 1, to: 4, price: '' });
+  const [bulk, setBulk] = useState({ from: 1, to: 4, price: '', per: 'person' });
+  const r2 = (v) => Math.round((+v + Number.EPSILON) * 100) / 100;
+  // Le prix par personne est stocké ; quand on saisit un total, prix / pers. = total ÷ nombre de personnes
+  const setRow = (i, price) => save(rows.map((x, k) => (k === i ? { ...x, price } : x)));
   const save = (list) => onChange([...list].sort((a, b) => a.n - b.n));
   const apply = () => {
     const from = Math.max(1, Math.min(+bulk.from, +bulk.to)), to = Math.min(100, Math.max(+bulk.from, +bulk.to));
     if (!from || !to || bulk.price === '') return;
     const map = new Map(rows.map((r) => [r.n, r.price]));
-    for (let n = from; n <= to; n++) map.set(n, +bulk.price);
+    for (let n = from; n <= to; n++) map.set(n, bulk.per === 'total' ? +bulk.price / n : +bulk.price);
     save([...map].map(([n, price]) => ({ n, price })));
   };
   const last = rows[rows.length - 1];
@@ -403,22 +406,25 @@ function CountPricing({ rows, onChange }) {
   return (
     <fieldset className="panel stack">
       <legend><strong>Prix selon le nombre de personnes</strong></legend>
-      <p className="muted" style={{ margin: 0 }}>Indiquez le prix <b>par personne</b> pour chaque taille de groupe. Le dernier nombre du tableau est la capacité maximale : au-delà, le client demande un devis.</p>
+      <p className="muted" style={{ margin: 0 }}>Pour chaque taille de groupe, saisissez soit le prix <b>par personne</b>, soit le <b>total du groupe</b> : l’autre se calcule tout seul. Le dernier nombre du tableau est la capacité maximale : au-delà, le client demande un devis.</p>
       <div className="row" style={{ alignItems: 'flex-end', gap: 8, flexWrap: 'wrap' }}>
         <label className="lbl" style={{ width: 90 }}>De<input className="inp" type="number" min="1" value={bulk.from} onChange={(ev) => setBulk({ ...bulk, from: ev.target.value })} /></label>
         <label className="lbl" style={{ width: 90 }}>à<input className="inp" type="number" min="1" value={bulk.to} onChange={(ev) => setBulk({ ...bulk, to: ev.target.value })} /></label>
-        <label className="lbl" style={{ width: 150 }}>personnes : prix / pers. (€)<input className="inp" type="number" min="0" value={bulk.price} onChange={(ev) => setBulk({ ...bulk, price: ev.target.value })} onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.preventDefault(); apply(); } }} /></label>
+        <label className="lbl" style={{ width: 130 }}>personnes : prix (€)<input className="inp" type="number" min="0" value={bulk.price} onChange={(ev) => setBulk({ ...bulk, price: ev.target.value })} onKeyDown={(ev) => { if (ev.key === 'Enter') { ev.preventDefault(); apply(); } }} /></label>
+        <label className="lbl" style={{ width: 190 }}>Ce prix est
+          <select className="inp" value={bulk.per} onChange={(ev) => setBulk({ ...bulk, per: ev.target.value })}><option value="person">par personne</option><option value="total">le total du groupe</option></select>
+        </label>
         <button type="button" className="btn btn--primary btn-sm" disabled={!bulkOk} onClick={apply}>Appliquer</button>
       </div>
-      {rows.length === 0 ? <p className="alert alert--info">Aucun prix pour l’instant : utilisez « Appliquer » ci-dessus (par exemple de 1 à 8 personnes à 60 €), puis ajustez chaque ligne.</p> : (
+      {rows.length === 0 ? <p className="alert alert--info">Aucun prix pour l’instant : utilisez « Appliquer » ci-dessus (par exemple de 1 à 8 personnes à 60 € par personne, ou de 1 à 4 personnes à 200 € au total), puis ajustez chaque ligne.</p> : (
         <div className="tbl-wrap">
           <table className="tbl">
-            <thead><tr><th>Personnes</th><th>Prix / pers. (€)</th><th>Total du groupe</th><th /></tr></thead>
+            <thead><tr><th>Personnes</th><th>Prix / pers. (€)</th><th>Total du groupe (€)</th><th /></tr></thead>
             <tbody>{rows.map((r, i) => (
               <tr key={r.n}>
                 <td>{r.n}</td>
-                <td><input type="number" min="0" aria-label={`Prix par personne pour ${r.n}`} value={r.price} onChange={(ev) => save(rows.map((x, k) => (k === i ? { ...x, price: +ev.target.value } : x)))} /></td>
-                <td>{eur(r.price * r.n)}</td>
+                <td><input type="number" min="0" step="0.01" aria-label={`Prix par personne pour ${r.n}`} value={r2(r.price)} onChange={(ev) => setRow(i, +ev.target.value)} /></td>
+                <td><input type="number" min="0" step="0.01" aria-label={`Total du groupe pour ${r.n}`} value={r2(r.price * r.n)} onChange={(ev) => setRow(i, +ev.target.value / r.n)} /></td>
                 <td><RemoveButton what={`le prix pour ${r.n} personne${r.n > 1 ? 's' : ''}`} onConfirm={() => save(rows.filter((_, k) => k !== i))} /></td>
               </tr>
             ))}</tbody>
