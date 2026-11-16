@@ -210,6 +210,34 @@ function ContentTab({ e, set, onRetranslate, busy }) {
   );
 }
 
+/** Langues proposées pour le guide (codes ISO) — dans l'ordre d'affichage */
+const GUIDE_LANGS = [['fr', 'Français'], ['en', 'Anglais'], ['de', 'Allemand'], ['it', 'Italien'], ['es', 'Espagnol'], ['ar', 'Arabe'], ['ru', 'Russe'], ['pl', 'Polonais'], ['nl', 'Néerlandais'], ['pt', 'Portugais'], ['cs', 'Tchèque'], ['zh', 'Chinois']];
+const guideLangLabel = (code) => GUIDE_LANGS.find(([c]) => c === code)?.[1] || code.toUpperCase();
+
+/** Choix d'une ou plusieurs langues du guide (cases à cocher) */
+function GuideLanguages({ value, onChange }) {
+  const extra = value.filter((c) => !GUIDE_LANGS.some(([k]) => k === c));   // codes saisis autrefois à la main
+  const order = [...GUIDE_LANGS.map(([c]) => c), ...extra];
+  const toggle = (code, on) => onChange(order.filter((c) => (c === code ? on : value.includes(c))));
+  return (
+    <fieldset className="panel stack" style={{ gap: 10 }}>
+      <legend><strong>Langues du guide</strong></legend>
+      <p className="muted" style={{ margin: 0 }}>Cochez une ou plusieurs langues. Si vous en cochez plusieurs, le client choisit sa langue au moment de réserver.</p>
+      <div className="row" style={{ flexWrap: 'wrap', gap: 8 }}>
+        {order.map((code) => {
+          const on = value.includes(code);
+          return (
+            <label key={code} className="check" style={{ minHeight: 0, padding: '6px 12px', borderRadius: 999, border: `1px solid ${on ? 'var(--green, #1F7A5A)' : 'var(--line, #E7E1D3)'}`, background: on ? 'var(--green-soft, #E8F3EE)' : '#fff', cursor: 'pointer' }}>
+              <input type="checkbox" checked={on} onChange={(ev) => toggle(code, ev.target.checked)} />{guideLangLabel(code)}
+            </label>
+          );
+        })}
+      </div>
+      {value.length === 0 && <p className="alert alert--warn" style={{ margin: 0 }}>Aucune langue cochée : la langue du guide ne sera pas affichée sur la fiche.</p>}
+    </fieldset>
+  );
+}
+
 function InfoTab({ e, set }) {
   const [drag, setDrag] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -250,9 +278,9 @@ function InfoTab({ e, set }) {
         <label className="lbl">Durée (heures, pour les filtres)<input className="inp" type="number" value={e.durationHours || ''} onChange={(ev) => set('durationHours', +ev.target.value)} /></label>
         <label className="lbl">Âge minimum<input className="inp" type="number" value={e.minAge || 0} onChange={(ev) => set('minAge', +ev.target.value)} /></label>
         <label className="lbl">Villes de départ (séparées par des virgules)<input className="inp" value={csv(e.departureCities)} onChange={(ev) => set('departureCities', parse(ev.target.value))} /></label>
-        <label className="lbl">Langues du guide<input className="inp" value={csv(e.guideLanguages)} onChange={(ev) => set('guideLanguages', parse(ev.target.value))} placeholder="fr, en, de" /></label>
         <label className="lbl">Horaires de départ<input className="inp" value={csv(e.startTimes)} onChange={(ev) => set('startTimes', parse(ev.target.value))} placeholder="08:00" /></label>
       </div>
+      <GuideLanguages value={e.guideLanguages || []} onChange={(v) => set('guideLanguages', v)} />
       <div className="row">
         {['private', 'family', 'bestseller', 'new'].map((b) => (
           <label key={b} className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={(e.badges || []).includes(b)} onChange={(ev) => set('badges', ev.target.checked ? [...(e.badges || []), b] : e.badges.filter((x) => x !== b))} />{b}</label>
@@ -510,12 +538,12 @@ function PricingTab({ e, set, id }) {
       <fieldset className="panel stack"><legend><strong>Supplément selon la langue du guide</strong></legend>
         {(pr.guideLanguages || []).map((g, i) => (
           <div key={i} className="row">
-            <select className="inp" value={g.lang} onChange={(ev) => set(P(`guideLanguages.${i}.lang`), ev.target.value)}>{LANGS.map((l) => <option key={l}>{l}</option>)}</select>
+            <select className="inp" value={g.lang} onChange={(ev) => set(P(`guideLanguages.${i}.lang`), ev.target.value)}>{[...new Set([...(e.guideLanguages?.length ? e.guideLanguages : LANGS), g.lang])].filter(Boolean).map((l) => <option key={l} value={l}>{guideLangLabel(l)}</option>)}</select>
             <input className="inp" type="number" value={g.fee ?? 0} onChange={(ev) => set(P(`guideLanguages.${i}.fee`), +ev.target.value)} style={{ width: 120 }} />
             <RemoveButton what="ce supplément de langue" onConfirm={() => set(P('guideLanguages'), pr.guideLanguages.filter((_, k) => k !== i))} />
           </div>
         ))}
-        <button type="button" className="link-btn" onClick={() => set(P('guideLanguages'), [...(pr.guideLanguages || []), { lang: 'de', fee: 0 }])}>+ Langue</button>
+        <button type="button" className="link-btn" onClick={() => set(P('guideLanguages'), [...(pr.guideLanguages || []), { lang: (e.guideLanguages || []).find((l) => !(pr.guideLanguages || []).some((g) => g.lang === l)) || e.guideLanguages?.[0] || 'de', fee: 0 }])}>+ Langue</button>
       </fieldset>
 
       <fieldset className="panel stack"><legend><strong>Extras payants</strong></legend>
