@@ -67,8 +67,9 @@ export function Media({ photo, src, alt, ph, className = '', style, children, ea
  * Balises SEO : title, description, canonical, hreflang des 5 langues, Open Graph, données structurées (§8).
  * `alternates` = { en: '/en/...', fr: '/fr/...' } ; à défaut, la même URL dans chaque langue.
  */
-export function Seo({ title, description, canonical, alternates, image, noindex, jsonLd }) {
-  const { lang } = useApp();
+export function Seo({ title, description, canonical, alternates, image, noindex, jsonLd, keywords = [] }) {
+  const { lang, settings } = useApp();
+  const allKeywords = [...new Set([...keywords, ...(settings?.siteKeywords || [])].map((k) => String(k || '').trim()).filter(Boolean))];
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const url = canonical || (typeof window !== 'undefined' ? window.location.pathname : '');
   return (
@@ -76,6 +77,7 @@ export function Seo({ title, description, canonical, alternates, image, noindex,
       <html lang={lang} />
       {title && <title>{title.includes('JS Travel') ? title : `${title} | JS Travel Tunisia`}</title>}
       {description && <meta name="description" content={description} />}
+      {allKeywords.length > 0 && <meta name="keywords" content={allKeywords.join(', ')} />}
       <link rel="canonical" href={origin + url} />
       {alternates && LANGS.filter((l) => alternates[l]).map((l) => <link key={l} rel="alternate" hrefLang={l} href={origin + alternates[l]} />)}
       {alternates?.en && <link rel="alternate" hrefLang="x-default" href={origin + alternates.en} />}

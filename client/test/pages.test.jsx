@@ -158,6 +158,16 @@ describe('site public', () => {
       expect(sent.items[0]).toMatchObject({ guide: true, city: 'Tozeur' });
     } finally { delete routes['/api/excursions/e1/quote']; delete routes['/api/bookings']; }
   });
+  it('mots-clés du site ajoutés à toutes les pages, avec ceux de la fiche', async () => {
+    const before = routes['/api/settings'];
+    routes['/api/settings'] = { ...before, siteKeywords: ['excursion Tunisie', 'transfert aéroport'] };
+    routes['/api/excursions/excursion-carthage-sidi-bou-said'] = { ...excursion, seo: { metaTitle: 'Titre SEO', focusKeyword: 'excursion Carthage', secondaryKeywords: ['Sidi Bou Saïd'] } };
+    try {
+      renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
+      await screen.findByRole('heading', { level: 1 });
+      await waitFor(() => expect(document.querySelector('meta[name="keywords"]')?.getAttribute('content')).toBe('excursion Carthage, Sidi Bou Saïd, excursion Tunisie, transfert aéroport'));
+    } finally { routes['/api/settings'] = before; routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
+  });
   it('fiche excursion sans vidéo : pas d’espace vidéo', async () => {
     renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
     expect(await screen.findByRole('heading', { level: 1 })).toBeTruthy();

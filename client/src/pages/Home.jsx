@@ -116,9 +116,11 @@ export default function Home() {
     <>
       <Seo
         title={seo.metaTitle || t('hero.eyebrow')}
+        keywords={[seo?.focusKeyword, ...(seo?.secondaryKeywords || [])]}
         description={seo.metaDescription || t('hero.text')}
         alternates={Object.fromEntries(LANGS.map((l) => [l, `/${l}`]))}
         jsonLd={{ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'JS Travel Tunisia', logo: `${location.origin}/brand/icon-512.png`, telephone: settings?.contact?.phone, address: settings?.contact?.address,
+          ...(settings?.siteKeywords?.length > 0 && { keywords: settings.siteKeywords.join(', ') }),
           ...(reviews?.rating && { aggregateRating: { '@type': 'AggregateRating', ratingValue: reviews.rating, reviewCount: reviews.count } }) }}
       />
       <Hero />
