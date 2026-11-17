@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate, capacityOf, countTable, priceForCount, fromPrice } from '../src/lib/pricing.js';
+import { computeExcursionPrice, computeTransferQuotes, seasonFor, groupTable, minimumWarnings, discountRate, capacityOf, countTable, priceForCount, fromPrice, cityTransferFor, guideOptionOf } from '../src/lib/pricing.js';
 
 const carthage = {
   pricing: {
@@ -113,4 +113,40 @@ test('prix affiché sur la carte : prioritaire sur le calcul, vide = automatique
   assert.equal(fromPrice({ pricing: { mode: 'quote', cardPrice: { amount: 80 } } }).amount, 80);
   // le calcul de la réservation n'est pas modifié
   assert.equal(computeExcursionPrice({ pricing: { ...base.pricing, cardPrice: { amount: 1 } } }, { participants: { adult: 1 } }).totalEur, 120);
+});
+
+/* ---------- Option guide et transfert depuis une autre ville ---------- */
+const withExtras = {
+  departureCities: ['Sousse', 'Monastir'],
+  pricing: {
+    mode: 'per_count', byCount: [{ n: 1, price: 100 }, { n: 2, price: 60 }, { n: 4, price: 50 }],
+    zones: [{ key: 'hammamet', label: 'Hammamet', fee: 10 }],
+    guideOption: { enabled: true, price: 30, per: 'booking' },
+    cityTransfers: [{ city: 'Nabeul', price: 40, per: 'booking' }, { city: 'Djerba', price: 15, per: 'person' }],
+  },
+};
+test('option guide : ajoutée seulement si cochée et proposée', () => {
+  assert.equal(computeExcursionPrice(withExtras, { participants: { adult: 2 } }).totalEur, 120);
+  const r = computeExcursionPrice(withExtras, { participants: { adult: 2 }, guide: true });
+  assert.equal(r.totalEur, 150);
+  assert.deepEqual(r.lines.find((l) => l.key === 'guide'), { key: 'guide', per: 'booking', qty: 1, unit: 30, amount: 30 });
+  const perPerson = { ...withExtras, pricing: { ...withExtras.pricing, guideOption: { enabled: true, price: 10, per: 'person' } } };
+  assert.equal(computeExcursionPrice(perPerson, { participants: { adult: 2, child: 1, infant: 1 }, guide: true }).lines.find((l) => l.key === 'guide').amount, 30);
+  const off = { ...withExtras, pricing: { ...withExtras.pricing, guideOption: { enabled: false, price: 30 } } };
+  assert.equal(computeExcursionPrice(off, { participants: { adult: 2 }, guide: true }).totalEur, 120);
+  assert.equal(guideOptionOf(off), null);
+});
+test('transfert : ville de départ ou zone = gratuit, autre ville = prix configuré ou sur demande', () => {
+  assert.equal(cityTransferFor(withExtras, 'sousse'), null);
+  assert.equal(cityTransferFor(withExtras, ' Hammamet '), null);   // zone de prise en charge
+  assert.equal(cityTransferFor(withExtras, ''), null);
+  assert.deepEqual(cityTransferFor(withExtras, 'nabeul'), { city: 'Nabeul', price: 40, per: 'booking' });
+  assert.equal(computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Nabeul' }).totalEur, 160);
+  assert.equal(computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Djerba' }).totalEur, 150);
+  const both = computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Nabeul', guide: true });
+  assert.equal(both.totalEur, 190);
+  const far = computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Tozeur' });
+  assert.equal(far.totalEur, 120);
+  assert.equal(far.cityTransferOnRequest, 'Tozeur');
+  assert.equal(computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Monastir' }).cityTransferOnRequest, undefined);
 });

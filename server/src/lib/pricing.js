@@ -90,8 +90,10 @@ export function discountRate({ promo, early, partner, date, today = new Date(), 
  *   zones: [{ key: 'hammamet', label, fee: 10 }],
  *   guideLanguages: [{ lang: 'de', fee: 20 }],
  *   options: [{ key: 'lunch', label, price: 15, per: 'person' | 'vehicle' | 'booking' }],
+ *   guideOption: { enabled: true, price: 30, per: 'booking' | 'person' | 'vehicle' },   // guide en option, coché par le client
+ *   cityTransfers: [{ city: 'Nabeul', price: 40, per: 'booking' | 'person' | 'vehicle' }], // hôtel hors des villes de départ
  * }
- * booking = { date, participants: { adult, child, infant }, zone, guideLang, options: ['lunch'] }
+ * booking = { date, participants: { adult, child, infant }, zone, guideLang, options: ['lunch'], guide: true, city: 'Nabeul' }
  * ctx = { calendar, discount: { rate, source }, rate: 1, currency: 'EUR' }
  */
 /** Mode « selon le nombre de personnes » : lignes valides, triées par nombre de personnes. */
@@ -119,6 +121,30 @@ export function capacityOf(excursion) {
     if (rows.length) return rows[rows.length - 1].n;
   }
   return pr.maxGroup;
+}
+
+const normCity = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+
+/**
+ * Transfert depuis la ville de l'hôtel du client.
+ * null = pas de transfert (ville de départ de l'excursion ou zone de prise en charge) ;
+ * { onRequest: true } = ville hors liste, prix confirmé par l'équipe ; sinon { city, price, per }.
+ */
+export function cityTransferFor(excursion, city) {
+  const c = normCity(city);
+  if (!c) return null;
+  const pr = excursion?.pricing || {};
+  const local = [...(excursion?.departureCities || []), ...(pr.zones || []).flatMap((z) => [z.key, z.label])].map(normCity);
+  if (local.includes(c)) return null;
+  const row = (pr.cityTransfers || []).find((r) => r && normCity(r.city) === c);
+  if (!row || !(+row.price > 0)) return { city: String(city).trim(), onRequest: true };
+  return { city: row.city, price: +row.price, per: ['person', 'vehicle'].includes(row.per) ? row.per : 'booking' };
+}
+
+/** Option guide proposée sur l'excursion (null si non proposée). */
+export function guideOptionOf(excursion) {
+  const g = excursion?.pricing?.guideOption;
+  return g && g.enabled && +g.price > 0 ? { price: +g.price, per: ['person', 'vehicle'].includes(g.per) ? g.per : 'booking' } : null;
 }
 
 export function computeExcursionPrice(excursion, booking, ctx = {}) {
@@ -231,7 +257,24 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
     lines.push({ key: 'option', option: o.key, label, qty: q, unit: o.price, amount });
   }
 
-  const subtotal = round2(base + zoneFee + langFee + optionsTotal);
+  // Guide en option (case cochée par le client) et transfert depuis une autre ville
+  let extrasTotal = 0;
+  const qtyFor = (per) => (per === 'person' ? payers : per === 'vehicle' ? vehicles : 1);
+  const guide = booking.guide ? guideOptionOf(excursion) : null;
+  if (guide) {
+    const q = qtyFor(guide.per), amount = round2(guide.price * q);
+    extrasTotal += amount;
+    lines.push({ key: 'guide', per: guide.per, qty: q, unit: guide.price, amount });
+  }
+  const ct = cityTransferFor(excursion, booking.city);
+  if (ct?.onRequest) result.cityTransferOnRequest = ct.city;
+  else if (ct) {
+    const q = qtyFor(ct.per), amount = round2(ct.price * q);
+    extrasTotal += amount;
+    lines.push({ key: 'cityTransfer', label: ct.city, per: ct.per, qty: q, unit: ct.price, amount });
+  }
+
+  const subtotal = round2(base + zoneFee + langFee + optionsTotal + extrasTotal);
   const d = ctx.discount || { rate: 0 };
   const discountAmount = round2(subtotal * (d.rate || 0));
   if (discountAmount) lines.push({ key: 'discount', source: d.source, code: d.code, rate: d.rate, amount: -discountAmount });

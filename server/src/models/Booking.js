@@ -15,6 +15,9 @@ const ItemSchema = new mongoose.Schema({
   zone: String,
   guideLang: String,
   options: [String],
+  guide: Boolean,         // option guide cochée
+  city: String,           // ville de l'hôtel (transfert si hors des villes de départ)
+  cityTransferOnRequest: Boolean,   // ville sans prix configuré : à confirmer par l'équipe
   // Transfert
   transfer: {
     from: String, fromZone: String, to: String, toZone: String,
@@ -39,6 +42,8 @@ const BookingSchema = new mongoose.Schema({
   customer: {
     name: { type: String, required: true }, email: { type: String, required: true, lowercase: true, index: true },
     phone: String, hotel: String, room: String, notes: String,
+    nationality: String,   // code pays ISO (ex. FR)
+    city: String,          // ville de l'hôtel
   },
   account: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
   lang: { type: String, default: 'en' },

@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { adminApi, adminDownload, API_URL } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
 import { useLoad, Top, eur, Status, STATUS, Err, useToast, useConfirm } from './shared.jsx';
+import { countryName } from '../lib/countries.js';
 
 /** Suppression d'une réservation (définitive) avec confirmation */
 function useDeleteBooking() {
@@ -60,7 +61,9 @@ function BookingDrawer({ id, onClose, onSaved }) {
               <label className="lbl">Nom<input className="inp" required value={cust.name || ''} onChange={(e) => setCust({ ...cust, name: e.target.value })} /></label>
               <label className="lbl">E-mail<input className="inp" type="email" required value={cust.email || ''} onChange={(e) => setCust({ ...cust, email: e.target.value })} /></label>
               <label className="lbl">Téléphone<input className="inp" required value={cust.phone || ''} onChange={(e) => setCust({ ...cust, phone: e.target.value })} /></label>
+              <label className="lbl">Ville de l’hôtel<input className="inp" value={cust.city || ''} onChange={(e) => setCust({ ...cust, city: e.target.value })} /></label>
               <label className="lbl">Hôtel<input className="inp" value={cust.hotel || ''} onChange={(e) => setCust({ ...cust, hotel: e.target.value })} /></label>
+              <label className="lbl">Nationalité (code pays, ex. FR)<input className="inp" maxLength={2} value={cust.nationality || ''} onChange={(e) => setCust({ ...cust, nationality: e.target.value.toUpperCase() })} /></label>
               <label className="lbl">Chambre<input className="inp" value={cust.room || ''} onChange={(e) => setCust({ ...cust, room: e.target.value })} /></label>
             </div>
             <label className="lbl">Remarques<textarea className="inp" rows={3} value={cust.notes || ''} onChange={(e) => setCust({ ...cust, notes: e.target.value })} /></label>
@@ -68,10 +71,11 @@ function BookingDrawer({ id, onClose, onSaved }) {
           </form>
         ) : (
         <div className="panel">
-          {canEdit && <button type="button" className="btn btn--outline btn-sm" style={{ float: 'right' }} onClick={() => setCust({ name: b.customer.name, email: b.customer.email, phone: b.customer.phone, hotel: b.customer.hotel || '', room: b.customer.room || '', notes: b.customer.notes || '' })}>Modifier</button>}
+          {canEdit && <button type="button" className="btn btn--outline btn-sm" style={{ float: 'right' }} onClick={() => setCust({ name: b.customer.name, email: b.customer.email, phone: b.customer.phone, hotel: b.customer.hotel || '', city: b.customer.city || '', nationality: b.customer.nationality || '', room: b.customer.room || '', notes: b.customer.notes || '' })}>Modifier</button>}
           <strong>{b.customer.name}</strong><br />
           <a href={`mailto:${b.customer.email}`}>{b.customer.email}</a> · <a href={`https://wa.me/${(b.customer.phone || '').replace(/\D/g, '')}`} target="_blank" rel="noreferrer">{b.customer.phone}</a><br />
-          {b.customer.hotel} {b.customer.room && `· ch. ${b.customer.room}`}
+          {b.customer.nationality && <>Nationalité : {countryName(b.customer.nationality)}<br /></>}
+          {b.customer.city && `${b.customer.city} · `}{b.customer.hotel} {b.customer.room && `· ch. ${b.customer.room}`}
           {b.customer.notes && <p className="muted" style={{ marginTop: 8 }}>« {b.customer.notes} »</p>}
           <p className="muted" style={{ fontSize: 13, marginTop: 8 }}>Langue {b.lang?.toUpperCase()} · {b.channel} {b.promoCode && `· code ${b.promoCode}`}</p>
         </div>
@@ -82,6 +86,10 @@ function BookingDrawer({ id, onClose, onSaved }) {
             <span className="muted">{i.date} {i.time} · {i.participants?.adult} ad. {i.participants?.child ? `+ ${i.participants.child} enf.` : ''} {i.participants?.infant ? `+ ${i.participants.infant} bébé` : ''} {i.zone && `· ${i.zone}`} {i.guideLang && `· guide ${i.guideLang.toUpperCase()}`}</span>
             {i.transfer && <span className="muted">{i.transfer.from} → {i.transfer.to} · {i.transfer.vehicle} {i.transfer.flightNumber && `· vol ${i.transfer.flightNumber}`}</span>}
             {i.options?.length > 0 && <span className="muted">Options : {i.options.join(', ')}</span>}
+            {(i.lines || []).filter((l) => l.key === 'guide' || l.key === 'cityTransfer').map((l, k) => (
+              <span key={k} className="muted">{l.key === 'guide' ? 'Guide en option' : `Transfert depuis ${l.label}`} : {eur(l.amount)}</span>
+            ))}
+            {i.cityTransferOnRequest && <span className="alert alert--warn" style={{ margin: 0 }}>Hôtel à {i.city} : transfert sans prix configuré — à confirmer avec le client.</span>}
             {canEdit && (
               <label className="lbl" style={{ maxWidth: 220 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
             )}

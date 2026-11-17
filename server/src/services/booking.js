@@ -123,7 +123,8 @@ export async function createBooking({ items, customer, promoCode, partnerCode, c
 
   for (const it of items) {
     if (it.type === 'excursion') {
-      const { exc, price } = await priceExcursionItem(it, { promoCode, partnerCode, currency, lang });
+      // La ville de l'hôtel (formulaire final) détermine un éventuel transfert
+      const { exc, price } = await priceExcursionItem({ ...it, city: it.city || customer.city }, { promoCode, partnerCode, currency, lang });
       if (price.quote || price.error) throw new HttpError(400, 'QUOTE_ONLY', undefined, { excursion: exc._id });
       const avail = await checkAvailability(exc, it.date);
       if (!avail.available) throw new HttpError(409, avail.reason, undefined, { excursion: exc._id, date: it.date });
@@ -131,6 +132,7 @@ export async function createBooking({ items, customer, promoCode, partnerCode, c
       out.push({
         type: 'excursion', excursion: exc._id, title: exc.title?.[lang] || exc.title?.en,
         date: it.date, time: it.time, participants: it.participants, zone: it.zone, guideLang: it.guideLang, options: it.options,
+        guide: !!price.lines.find((l) => l.key === 'guide'), city: it.city || customer.city, cityTransferOnRequest: !!price.cityTransferOnRequest,
         season: price.season, lines: price.lines, totalEur: price.totalEur,
         status: avail.mode === 'instant' ? 'confirmed' : 'pending',
       });
