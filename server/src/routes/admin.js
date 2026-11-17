@@ -134,7 +134,7 @@ r.patch('/bookings/:id', allow('manager'), async (req, res) => {
   const body = z.object({
     status: z.enum(STATUS).optional(),
     collectedAmount: z.number().optional(), collectedCurrency: z.string().optional(),
-    customer: z.object({ name: z.string(), email: z.string().email(), phone: z.string(), hotel: z.string().optional(), room: z.string().optional(), notes: z.string().optional() }).partial().optional(),
+    customer: z.object({ name: z.string(), email: z.string().email(), phone: z.string(), hotel: z.string().optional(), city: z.string().optional(), nationality: z.string().optional(), room: z.string().optional(), notes: z.string().optional() }).partial().optional(),
     items: z.array(z.object({ _id: z.string(), date: z.string().optional(), time: z.string().optional(), status: z.enum(['pending', 'confirmed', 'cancelled', 'waitlist']).optional(), driver: z.string().nullable().optional(), vehiclePlate: z.string().optional() })).optional(),
     note: z.string().optional(),
   }).parse(req.body);

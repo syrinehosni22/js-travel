@@ -25,6 +25,8 @@ const PricingSchema = new mongoose.Schema({
   zones: [{ _id: false, key: String, label: String, fee: Number }],
   guideLanguages: [{ _id: false, lang: String, fee: Number }],
   options: [{ _id: false, key: String, label: L(), description: L(), price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'] } }],   // extras payants
+  guideOption: { enabled: Boolean, price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'], default: 'booking' } },   // guide en option (case à cocher à la réservation)
+  cityTransfers: [{ _id: false, city: String, price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'], default: 'booking' } }],   // hôtel hors des villes de départ
 }, { _id: false });
 
 const ExcursionSchema = new mongoose.Schema({

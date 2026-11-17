@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
-import { fromPrice, seasonFor, computeExcursionPrice } from '../lib/pricing.js';
+import { fromPrice, seasonFor, computeExcursionPrice, guideOptionOf } from '../lib/pricing.js';
 import { cleanText } from '../services/text.js';
 import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User, Review } from '../models/index.js';
 import { publicReview } from '../services/reviews.js';
@@ -156,6 +156,7 @@ const quoteSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   participants: z.object({ adult: z.number().int().min(0).max(50), child: z.number().int().min(0).max(50).default(0), infant: z.number().int().min(0).max(50).default(0) }),
   zone: z.string().optional(), guideLang: z.string().optional(), options: z.array(z.string()).default([]),
+  guide: z.boolean().optional(), city: z.string().max(80).optional(),
   promoCode: z.string().optional(), partnerCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
 });
 
@@ -164,7 +165,13 @@ r.post('/excursions/:id/quote', async (req, res) => {
   const body = quoteSchema.parse(req.body);
   const { exc, price, discount } = await priceExcursionItem({ ...body, excursion: req.params.id }, { ...body, lang: lang(req) });
   const availability = body.date ? await checkAvailability(exc, body.date) : null;
-  res.json({ price, discount: { rate: discount.rate, source: discount.source }, availability });
+  // Options proposées au formulaire final : guide à cocher et villes avec transfert
+  const extras = {
+    guide: guideOptionOf(exc),
+    departureCities: exc.departureCities || [],
+    transferCities: (exc.pricing?.cityTransfers || []).filter((c) => c.city && +c.price > 0).map((c) => c.city),
+  };
+  res.json({ price, discount: { rate: discount.rate, source: discount.source }, availability, extras });
 });
 
 r.post('/waitlist', formLimiter, async (req, res) => {
@@ -230,11 +237,12 @@ const itemSchema = z.object({
   excursion: z.string().optional(), date: z.string().optional(), time: z.string().optional(),
   participants: z.object({ adult: z.number().int().min(1), child: z.number().int().min(0).default(0), infant: z.number().int().min(0).default(0) }),
   zone: z.string().optional(), guideLang: z.string().optional(), options: z.array(z.string()).default([]),
+  guide: z.boolean().optional(), city: z.string().max(80).transform(cleanText).optional(),
   transfer: transferSchema.omit({ passengers: true, promoCode: true, currency: true }).extend({ vehicle: z.string(), from: z.string().optional(), to: z.string().optional() }).optional(),
 });
 const bookingSchema = z.object({
   items: z.array(itemSchema).min(1).max(10),
-  customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
+  customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), city: z.string().max(80).transform(cleanText).optional(), nationality: z.string().trim().max(60).optional(), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
   promoCode: z.string().optional(), partnerCode: z.string().optional(),
   currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
   consent: z.object({ terms: z.boolean(), cancellation: z.literal(true) }),

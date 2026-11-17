@@ -5,6 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import '../src/i18n.js';
 import App from '../src/App.jsx';
+import { computeExcursionPrice, guideOptionOf } from '../src/lib/pricing.js';
 
 const excursion = {
   id: 'e1', slug: 'excursion-carthage-sidi-bou-said', slugs: { fr: 'excursion-carthage-sidi-bou-said', en: 'carthage' }, title: 'Carthage & Sidi Bou Saïd',
@@ -25,9 +26,9 @@ const routes = {
 };
 beforeEach(() => {
   localStorage.clear();
-  global.fetch = vi.fn(async (url) => {
+  global.fetch = vi.fn(async (url, opts) => {
     const path = String(url).split('?')[0];
-    const body = routes[path];
+    const body = typeof routes[path] === 'function' ? routes[path](JSON.parse(opts?.body || '{}')) : routes[path];
     return { ok: body !== undefined, status: body !== undefined ? 200 : 404, headers: { get: () => 'application/json' }, json: async () => body ?? { error: 'NOT_FOUND' } };
   });
   window.scrollTo = () => {};
@@ -129,6 +130,33 @@ describe('site public', () => {
       fireEvent(container.querySelector('.gyg-videos video'), new Event('waiting'));
       await waitFor(() => expect(container.querySelector('.video-loader')).toBeTruthy());
     } finally { routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
+  });
+  it('formulaire final : nationalité, ville de l’hôtel, guide à cocher et transfert ajoutés au total', async () => {
+    const exc = { departureCities: ['Sousse'], pricing: { mode: 'per_count', byCount: [{ n: 2, price: 60 }], guideOption: { enabled: true, price: 30, per: 'booking' }, cityTransfers: [{ city: 'Nabeul', price: 40 }] } };
+    routes['/api/excursions/e1/quote'] = (b) => ({ price: computeExcursionPrice(exc, b), extras: { guide: guideOptionOf(exc), departureCities: ['Sousse'], transferCities: ['Nabeul'] }, availability: { available: true } });
+    routes['/api/bookings'] = { ref: 'JS-1', token: 't' };
+    localStorage.setItem('cart', JSON.stringify([{ id: 'c1', type: 'excursion', excursion: 'e1', title: 'Carthage', date: '2026-12-20', participants: { adult: 2, child: 0, infant: 0 }, options: [], estimateEur: 120 }]));
+    try {
+      renderAt('/fr/reservation');
+      expect(await screen.findByRole('checkbox', { name: /Ajouter un guide/ }, { timeout: 3000 })).toBeTruthy();
+      expect(screen.getByLabelText(/Nationalité/)).toBeTruthy();
+      fireEvent.click(screen.getByRole('checkbox', { name: /Ajouter un guide/ }));
+      fireEvent.change(screen.getByLabelText(/Ville de votre hôtel/), { target: { value: 'Nabeul' } });
+      await waitFor(() => expect(screen.getAllByText(/190,00/).length).toBeGreaterThan(0), { timeout: 3000 });
+      expect(screen.getByText(/Transfert \(Nabeul\)/)).toBeTruthy();
+      fireEvent.change(screen.getByLabelText(/Ville de votre hôtel/), { target: { value: 'Tozeur' } });
+      expect(await screen.findByText(/Transfert depuis Tozeur : prix confirmé/, {}, { timeout: 3000 })).toBeTruthy();
+      fireEvent.change(screen.getByLabelText(/Nom complet/), { target: { value: 'Amel Ben' } });
+      fireEvent.change(screen.getByLabelText(/E-mail/), { target: { value: 'a@b.tn' } });
+      fireEvent.change(screen.getByLabelText(/Téléphone/), { target: { value: '+21600000000' } });
+      fireEvent.change(screen.getByLabelText(/Nationalité/), { target: { value: 'TN' } });
+      fireEvent.click(screen.getByRole('checkbox', { name: /J’accepte/ }));
+      fireEvent.click(screen.getByRole('button', { name: /Envoyer ma demande/ }));
+      await waitFor(() => expect(global.fetch.mock.calls.some(([u, o]) => String(u).includes('/api/bookings') && o?.method === 'POST')).toBe(true));
+      const sent = JSON.parse(global.fetch.mock.calls.find(([u, o]) => String(u).includes('/api/bookings') && o?.method === 'POST')[1].body);
+      expect(sent.customer).toMatchObject({ nationality: 'TN', city: 'Tozeur' });
+      expect(sent.items[0]).toMatchObject({ guide: true, city: 'Tozeur' });
+    } finally { delete routes['/api/excursions/e1/quote']; delete routes['/api/bookings']; }
   });
   it('fiche excursion sans vidéo : pas d’espace vidéo', async () => {
     renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');

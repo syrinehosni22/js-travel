@@ -638,3 +638,7 @@ button, input, select { font: inherit; color: inherit; }
 .extras-ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
 .extras-ul li { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; }
 @media (max-width: 480px) { .extras-ul li { flex-direction: column; gap: 4px; } .extras-ul .extra__price { text-align: left; } }
+
+/* Formulaire final : options guide / transfert sous chaque excursion */
+.checkout-extras { display: grid; gap: 8px; padding: 12px 14px; background: var(--bg-alt, #F6F3EC); box-shadow: none; }
+.checkout-extras .check span { line-height: 1.4; }

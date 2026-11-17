@@ -497,6 +497,55 @@ function CardPrice({ e, set }) {
   );
 }
 
+const PER_OPTS = [['booking', 'par groupe (réservation)'], ['person', 'par personne'], ['vehicle', 'par véhicule']];
+
+/** Option guide : case à cocher proposée au client sur le formulaire final */
+function GuideOptionPanel({ e, set }) {
+  const g = e.pricing?.guideOption || {};
+  const P = (k) => `pricing.guideOption.${k}`;
+  return (
+    <fieldset className="panel stack" style={{ gap: 10 }}>
+      <legend><strong>Option guide</strong></legend>
+      <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={!!g.enabled} onChange={(ev) => set(P('enabled'), ev.target.checked)} />Proposer un guide en option sur le formulaire de réservation</label>
+      {g.enabled && (
+        <div className="row" style={{ gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+          <label className="lbl" style={{ width: 150 }}>Prix du guide (€)<input className="inp" type="number" min="0" step="0.01" value={g.price ?? ''} onChange={(ev) => set(P('price'), ev.target.value === '' ? null : +ev.target.value)} /></label>
+          <label className="lbl" style={{ width: 230 }}>Compté<select className="inp" value={g.per || 'booking'} onChange={(ev) => set(P('per'), ev.target.value)}>{PER_OPTS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></label>
+        </div>
+      )}
+      {g.enabled && !(+g.price > 0) && <p className="alert alert--warn" style={{ margin: 0 }}>Indiquez un prix : sans prix, l’option n’est pas proposée.</p>}
+      <p className="muted" style={{ margin: 0 }}>Le client coche « Ajouter un guide » au moment de réserver ; le prix s’ajoute au total.</p>
+    </fieldset>
+  );
+}
+
+/** Transfert ajouté quand l'hôtel du client est dans une ville qui n'est pas une ville de départ */
+function CityTransfersPanel({ e, set }) {
+  const list = e.pricing?.cityTransfers || [];
+  const save = (v) => set('pricing.cityTransfers', v);
+  const departures = (e.departureCities || []).join(', ') || 'aucune (onglet Infos et photos)';
+  return (
+    <fieldset className="panel stack" style={{ gap: 10 }}>
+      <legend><strong>Transfert depuis une autre ville</strong></legend>
+      <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une ville de cette liste, le prix du transfert s’ajoute. Pour une ville absente de la liste, le client est prévenu que le prix sera confirmé par votre équipe.</p>
+      {list.length > 0 && (
+        <div className="tbl-wrap"><table className="tbl">
+          <thead><tr><th>Ville</th><th>Prix du transfert (€)</th><th>Compté</th><th /></tr></thead>
+          <tbody>{list.map((c, i) => (
+            <tr key={i}>
+              <td><input aria-label="Ville" placeholder="Ex. : Nabeul" value={c.city || ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, city: ev.target.value } : x)))} /></td>
+              <td><input aria-label={`Prix du transfert depuis ${c.city || 'cette ville'}`} type="number" min="0" step="0.01" value={c.price ?? ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, price: ev.target.value === '' ? null : +ev.target.value } : x)))} /></td>
+              <td><select aria-label="Compté" value={c.per || 'booking'} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, per: ev.target.value } : x)))}>{PER_OPTS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
+              <td><RemoveButton what={`le transfert depuis ${c.city || 'cette ville'}`} onConfirm={() => save(list.filter((_, k) => k !== i))} /></td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+      <div><button type="button" className="link-btn" onClick={() => save([...list, { city: '', price: null, per: 'booking' }])}>+ Ville</button></div>
+    </fieldset>
+  );
+}
+
 function PricingTab({ e, set, id }) {
   const pr = e.pricing || {};
   const P = (k) => `pricing.${k}`;
@@ -561,6 +610,9 @@ function PricingTab({ e, set, id }) {
         <label className="lbl">Âges enfant (de, à)<input className="inp" value={(pr.childAges || [4, 11]).join(',')} onChange={(ev) => set(P('childAges'), ev.target.value.split(',').map(Number))} /></label>
         <label className="lbl">Réduction bébé (1 = gratuit)<input className="inp" type="number" step="0.05" value={pr.infantDiscount ?? 0} onChange={(ev) => set(P('infantDiscount'), +ev.target.value)} /></label>
       </div>
+
+      <GuideOptionPanel e={e} set={set} />
+      <CityTransfersPanel e={e} set={set} />
 
       <fieldset className="panel stack"><legend><strong>Zones de prise en charge</strong></legend>
         {(pr.zones || []).map((z, i) => (
