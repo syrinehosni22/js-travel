@@ -5,6 +5,7 @@ import { fromPrice, seasonFor, computeExcursionPrice, guideOptionOf } from '../l
 import { cleanText } from '../services/text.js';
 import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User, Review } from '../models/index.js';
 import { publicReview } from '../services/reviews.js';
+import { byDisplayOrder } from '../lib/order.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';
 import { notifyBookingCreated, notifyStatus, sendMail } from '../services/notify.js';
@@ -24,7 +25,7 @@ function localize(e, l, full = false) {
     category: e.category, durationHours: e.durationHours, durationLabel: pick(e.durationLabel, l),
     departureCities: e.departureCities, guideLanguages: e.guideLanguages, badges: e.badges,
     image: e.images?.[0] ? { url: e.images[0].url, alt: pick(e.images[0].alt, l) } : null,
-    rating: e.rating, from: fromPrice(e, 'mid'), popularity: e.popularity,
+    rating: e.rating, from: fromPrice(e, 'mid'), popularity: e.popularity, position: e.position, createdAt: e.createdAt,
   };
   if (!full) return base;
   return {
@@ -95,7 +96,7 @@ r.get('/excursions', async (req, res) => {
   if (req.query.maxPrice) out = out.filter((e) => e.from.amount != null && e.from.amount <= +req.query.maxPrice);
   const sort = req.query.sort || 'popularity';
   const sorters = {
-    popularity: (a, b) => (b.popularity || 0) - (a.popularity || 0),
+    popularity: byDisplayOrder,   // « Recommandées » : ordre choisi dans l'admin
     price: (a, b) => (a.from.amount ?? 1e9) - (b.from.amount ?? 1e9),
     duration: (a, b) => (a.durationHours || 0) - (b.durationHours || 0),
   };
