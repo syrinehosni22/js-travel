@@ -11,6 +11,7 @@ import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
 import { notifyStatus, sendDriverRoadmap } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
+import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
 import { seoSummary } from '../services/seoSummary.js';
 import { cleanText } from '../services/text.js';
 import { LANGS, config } from '../config.js';
@@ -280,7 +281,12 @@ async function saveExcursion(req, e, data) {
   for (const l of LANGS) {
     const title = data.title?.[l];
     if (data.slug && data.slug[l] !== undefined) data.slug[l] = slugify(data.slug[l]);
-    if (title && !(data.slug?.[l]) && !(e.slug?.[l])) { data.slug = data.slug || {}; data.slug[l] = slugify(title); }
+    const current = data.slug?.[l] || e.slug?.[l];
+    // L'adresse suit le titre tant qu'elle n'a pas été personnalisée (ex. « nouvelle-excursion » après renommage)
+    const oldTitle = before?.title?.[l];
+    if (title && (!current || (oldTitle && title !== oldTitle && followsTitle(current, oldTitle)))) { data.slug = data.slug || {}; data.slug[l] = slugify(title); }
+    // Jamais deux excursions avec la même adresse : -2, -3… si elle est déjà prise
+    if (data.slug?.[l]) data.slug[l] = await firstFreeSlug(data.slug[l], (s) => Excursion.exists({ _id: { $ne: e._id }, [`slug.${l}`]: s }));
     const oldSlug = e.slug?.[l];
     const newSlug = data.slug?.[l];
     if (oldSlug && newSlug && oldSlug !== newSlug) {
@@ -323,7 +329,10 @@ r.post('/excursions/:id/duplicate', allow('editor', 'manager'), async (req, res)
   const src = await Excursion.findById(req.params.id).lean();
   if (!src) throw new HttpError(404, 'NOT_FOUND');
   delete src._id;
-  const copy = new Excursion({ ...src, published: false, publishedLangs: [], slugHistory: [], slug: Object.fromEntries(LANGS.map((l) => [l, src.slug?.[l] ? src.slug[l] + '-copie' : ''])), title: Object.fromEntries(LANGS.map((l) => [l, src.title?.[l] ? src.title[l] + ' (copie)' : ''])) });
+  // Adresse de la copie : « …-copie », puis « …-copie-2 »… si elle existe déjà
+  const slug = {};
+  for (const l of LANGS) slug[l] = src.slug?.[l] ? await firstFreeSlug(`${src.slug[l]}-copie`, (x) => Excursion.exists({ [`slug.${l}`]: x })) : '';
+  const copy = new Excursion({ ...src, published: false, publishedLangs: [], slugHistory: [], slug, title: Object.fromEntries(LANGS.map((l) => [l, src.title?.[l] ? src.title[l] + ' (copie)' : ''])) });
   await copy.save();
   await audit(req, 'duplicate', 'excursion', copy._id);
   res.status(201).json(copy);
