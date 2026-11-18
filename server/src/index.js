@@ -14,6 +14,7 @@ import { errorHandler, apiNotFound } from './middleware.js';
 import { startJobs } from './jobs.js';
 import { refreshRates } from './services/settings.js';
 import { bootstrap } from './seed-data.js';
+import { repairExcursionSlugs } from './services/slugs.js';
 
 const app = express();
 app.set('trust proxy', 1);
@@ -41,6 +42,8 @@ async function main() {
   console.log('[db] connecté à la base', mongoose.connection.name);
   // Crée automatiquement le compte administrateur (et les données de démarrage si la base est vide)
   await bootstrap();
+  // Adresses d'excursions en double (ex. deux fiches « nouvelle-excursion ») : corrigées automatiquement
+  await repairExcursionSlugs().catch((e) => console.error('[slugs]', e.message));
   app.listen(config.port, () => console.log(`[api] http://localhost:${config.port}`));
   startJobs();
   refreshRates();
