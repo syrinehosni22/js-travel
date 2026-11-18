@@ -75,6 +75,7 @@ const ExcursionSchema = new mongoose.Schema({
   published: { type: Boolean, default: false },
   publishedLangs: [String],
   popularity: { type: Number, default: 0 },
+  position: { type: Number, index: true },   // ordre d'affichage choisi dans l'admin (1 = en premier)
   rating: { value: Number, count: Number },
   related: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Excursion' }],
 }, { timestamps: true });

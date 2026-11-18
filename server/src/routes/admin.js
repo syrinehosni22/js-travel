@@ -12,6 +12,7 @@ import { getSettings, clearSettingsCache, refreshRates } from '../services/setti
 import { notifyStatus, sendDriverRoadmap } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
+import { byDisplayOrder } from '../lib/order.js';
 import { seoSummary } from '../services/seoSummary.js';
 import { cleanText } from '../services/text.js';
 import { LANGS, config } from '../config.js';
@@ -238,9 +239,9 @@ r.post('/planning/roadmaps', allow('manager'), async (req, res) => {
 
 /* ================= Excursions (§7.1, §8.2) ================= */
 r.get('/excursions', allow('manager', 'editor'), async (_req, res) => {
-  const list = await Excursion.find().sort({ updatedAt: -1 }).lean();
+  const list = (await Excursion.find().lean()).sort(byDisplayOrder);
   res.json(list.map((e) => ({
-    _id: e._id, title: e.title, slug: e.slug, category: e.category, published: e.published, publishedLangs: e.publishedLangs,
+    _id: e._id, position: e.position, title: e.title, slug: e.slug, category: e.category, published: e.published, publishedLangs: e.publishedLangs,
     translation: e.translation, image: e.images?.[0]?.url, pricingMode: e.pricing?.mode,
     seo: Object.fromEntries(LANGS.map((l) => [l, { score: seoScore(e, l).score, missing: seoErrors(e, l).length }])),
     warnings: minimumWarnings(e),
@@ -265,8 +266,14 @@ async function keywordConflicts(e) {
   return out;
 }
 
+async function nextPosition() {
+  const last = await Excursion.findOne({ position: { $ne: null } }).sort({ position: -1 }).select('position').lean();
+  return (last?.position || 0) + 1;
+}
+
 async function saveExcursion(req, e, data) {
   const isNew = e.isNew;
+  if (isNew && data.position == null) data.position = await nextPosition();
   const before = isNew ? null : e.toObject();
 
   // Traduction automatique depuis le français : champs vides remplis, texte modifié retraduit (sauf langues « Relu »)
@@ -318,6 +325,14 @@ async function saveExcursion(req, e, data) {
 
 r.post('/excursions', allow('editor', 'manager'), async (req, res) => res.status(201).json(await saveExcursion(req, new Excursion(), req.body)));
 
+/** Ordre d'affichage sur le site : liste complète des identifiants, dans l'ordre voulu */
+r.put('/excursions/order', allow('editor', 'manager'), async (req, res) => {
+  const { ids } = z.object({ ids: z.array(z.string().regex(/^[a-f\d]{24}$/i)).max(500) }).parse(req.body);
+  await Excursion.bulkWrite(ids.map((id, i) => ({ updateOne: { filter: { _id: id }, update: { $set: { position: i + 1 } } } })));
+  await audit(req, 'reorder', 'excursion', null);
+  res.json({ ok: true });
+});
+
 r.put('/excursions/:id', allow('editor', 'manager'), async (req, res) => {
   const e = await Excursion.findById(req.params.id);
   if (!e) throw new HttpError(404, 'NOT_FOUND');
@@ -332,7 +347,7 @@ r.post('/excursions/:id/duplicate', allow('editor', 'manager'), async (req, res)
   // Adresse de la copie : « …-copie », puis « …-copie-2 »… si elle existe déjà
   const slug = {};
   for (const l of LANGS) slug[l] = src.slug?.[l] ? await firstFreeSlug(`${src.slug[l]}-copie`, (x) => Excursion.exists({ [`slug.${l}`]: x })) : '';
-  const copy = new Excursion({ ...src, published: false, publishedLangs: [], slugHistory: [], slug, title: Object.fromEntries(LANGS.map((l) => [l, src.title?.[l] ? src.title[l] + ' (copie)' : ''])) });
+  const copy = new Excursion({ ...src, position: await nextPosition(), published: false, publishedLangs: [], slugHistory: [], slug, title: Object.fromEntries(LANGS.map((l) => [l, src.title?.[l] ? src.title[l] + ' (copie)' : ''])) });
   await copy.save();
   await audit(req, 'duplicate', 'excursion', copy._id);
   res.status(201).json(copy);

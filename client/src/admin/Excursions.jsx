@@ -34,15 +34,41 @@ export function ExcursionList() {
   const [toast, say] = useToast();
   const { user } = useAdmin();
   const canDelete = ['admin', 'manager'].includes(user.role);
+  // Ordre d'affichage sur le site : glisser-déposer ou flèches, enregistré aussitôt
+  const [rows, setRows] = useState([]);
+  const [drag, setDrag] = useState(null);
+  const [over, setOver] = useState(null);
+  const [orderErr, setOrderErr] = useState(null);
+  useEffect(() => { if (data) setRows(data); }, [data]);
+  async function move(from, to) {
+    if (to < 0 || to >= rows.length || from === to) return;
+    const next = [...rows];
+    const [item] = next.splice(from, 1);
+    next.splice(to, 0, item);
+    setRows(next); setOrderErr(null);
+    try { await adminApi.put('/excursions/order', { ids: next.map((x) => x._id) }); say('Ordre enregistré'); }
+    catch (x) { setOrderErr(x); setRows(rows); }
+  }
   return (
     <>
       <Top title="Excursions"><button className="btn btn--green" onClick={create}>+ Créer une excursion</button></Top>
-      <Err error={error} />
+      <Err error={error || orderErr} />
+      <p className="muted" style={{ margin: '0 0 8px' }}>L’ordre de cette liste est celui du site (accueil et catalogue, tri « Recommandées »). Faites glisser une ligne par la poignée ⠿ ou utilisez les flèches : l’ordre est enregistré aussitôt.</p>
       <div className="panel tbl-wrap">
         <table className="tbl">
-          <thead><tr><th>Excursion</th><th>Catégorie</th><th>Tarif</th><th>Publiée</th>{LANGS.map((l) => <th key={l}>{l.toUpperCase()}</th>)}<th></th></tr></thead>
-          <tbody>{(data || []).map((e) => (
-            <tr key={e._id}>
+          <thead><tr><th style={{ width: 150 }}>Ordre</th><th>Excursion</th><th>Catégorie</th><th>Tarif</th><th>Publiée</th>{LANGS.map((l) => <th key={l}>{l.toUpperCase()}</th>)}<th></th></tr></thead>
+          <tbody>{rows.map((e, i) => (
+            <tr key={e._id} draggable onDragStart={(ev) => { setDrag(i); ev.dataTransfer.effectAllowed = 'move'; }}
+              onDragOver={(ev) => { ev.preventDefault(); setOver(i); }} onDragLeave={() => setOver((o) => (o === i ? null : o))}
+              onDrop={(ev) => { ev.preventDefault(); if (drag != null) move(drag, i); setDrag(null); setOver(null); }} onDragEnd={() => { setDrag(null); setOver(null); }}
+              className={`order-row${drag === i ? ' is-dragging' : ''}${over === i && drag !== i ? ' is-over' : ''}`}>
+              <td><div className="order-cell">
+                <span className="order-handle" title="Glisser pour déplacer" aria-hidden="true">⠿</span>
+                <b>{i + 1}</b>
+                <button type="button" className="order-btn" title="Mettre en premier" aria-label={`Mettre en premier ${e.title?.fr || ''}`} disabled={i === 0} onClick={() => move(i, 0)}>⤒</button>
+                <button type="button" className="order-btn" title="Monter" aria-label={`Monter ${e.title?.fr || ''}`} disabled={i === 0} onClick={() => move(i, i - 1)}>↑</button>
+                <button type="button" className="order-btn" title="Descendre" aria-label={`Descendre ${e.title?.fr || ''}`} disabled={i === rows.length - 1} onClick={() => move(i, i + 1)}>↓</button>
+              </div></td>
               <td><Link to={`/admin/excursions/${e._id}`}><strong>{e.title?.fr || e.title?.en || '(sans titre)'}</strong></Link>
                 {e.warnings?.length > 0 && <div style={{ color: '#9B1C1C', fontSize: 12 }}>⚠ minimum inatteignable ({e.warnings.map((w) => w.season).join(', ')})</div>}</td>
               <td>{CATS[e.category] || '—'}</td>
