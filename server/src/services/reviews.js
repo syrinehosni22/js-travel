@@ -12,5 +12,14 @@ export async function refreshRating(excursionId) {
   return rating;
 }
 
+/** Note moyenne des avis publiés sur le site (bouton « Avis ») */
+export async function siteRating() {
+  const [agg] = await Review.aggregate([
+    { $match: { scope: 'site', status: 'approved' } },
+    { $group: { _id: null, avg: { $avg: '$rating' }, count: { $sum: 1 } } },
+  ]);
+  return agg?.count ? { value: Math.round(agg.avg * 10) / 10, count: agg.count } : { value: null, count: 0 };
+}
+
 /** Avis tel qu'affiché sur le site (sans e-mail). */
 export const publicReview = (r) => ({ id: r._id, name: r.name, rating: r.rating, comment: r.comment || '', reply: r.reply || '', lang: r.lang, createdAt: r.createdAt });

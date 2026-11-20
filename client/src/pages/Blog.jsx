@@ -41,7 +41,7 @@ export function BlogPost() {
   const url = encodeURIComponent(window.location.href);
   return (
     <>
-      <Seo title={p.seo?.metaTitle || p.title} description={p.seo?.metaDescription || p.excerpt} image={p.image}
+      <Seo title={p.seo?.metaTitle || p.title} description={p.seo?.metaDescription || p.excerpt} image={p.image} keywords={[p.seo?.focusKeyword, ...(p.seo?.secondaryKeywords || [])]}
         alternates={Object.fromEntries(LANGS.filter((l) => p.slugs?.[l]).map((l) => [l, path(l, 'blog', p.slugs[l])]))}
         jsonLd={{ '@context': 'https://schema.org', '@type': 'BlogPosting', headline: p.title, image: p.image, datePublished: p.publishedAt }} />
       <article className="container section prose">

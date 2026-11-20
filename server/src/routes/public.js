@@ -4,7 +4,7 @@ import rateLimit from 'express-rate-limit';
 import { fromPrice, seasonFor, computeExcursionPrice, guideOptionOf } from '../lib/pricing.js';
 import { cleanText } from '../services/text.js';
 import { Excursion, Location, Zone, TransferConfig, Booking, Message, Post, Waitlist, Redirect, TransferRoute, User, Review } from '../models/index.js';
-import { publicReview } from '../services/reviews.js';
+import { publicReview, siteRating } from '../services/reviews.js';
 import { byDisplayOrder } from '../lib/order.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';
@@ -60,6 +60,7 @@ r.get('/settings', async (req, res) => {
     cancellationHours: s.cancellationHours, fx: { EUR: 1, USD: s.fx?.USD, GBP: s.fx?.GBP, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
+    siteKeywords: String(s.siteKeywords?.[l] || '').split(',').map((k) => k.trim()).filter(Boolean),
     home: {
       hero: { title: pick(s.home?.hero?.title, l), text: pick(s.home?.hero?.text, l), slides: (s.home?.hero?.slides || []).filter(Boolean) },
       banner: { enabled: s.home?.banner?.enabled !== false, title: pick(s.home?.banner?.title, l), text: pick(s.home?.banner?.text, l), button: pick(s.home?.banner?.button, l), target: s.home?.banner?.target || 'transfers' },
@@ -127,16 +128,36 @@ r.get('/excursions/:id/reviews', async (req, res) => {
   res.json(list.map(publicReview));
 });
 
+const reviewInput = z.object({
+  name: z.string().trim().min(2).max(60),
+  email: z.string().trim().email().max(120).optional().or(z.literal('')),
+  rating: z.coerce.number().int().min(1).max(5),
+  comment: z.string().trim().max(2000).optional().default(''),
+  lang: z.string().optional(),
+});
+const escHtml = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+
+/* Avis sur le site et l'expérience (bouton « Avis » à côté de WhatsApp) */
+r.get('/reviews', async (_req, res) => {
+  const [list, rating] = await Promise.all([
+    Review.find({ scope: 'site', status: 'approved' }).sort({ createdAt: -1 }).limit(30).lean(),
+    siteRating(),
+  ]);
+  res.json({ list: list.map(publicReview), rating });
+});
+r.post('/reviews', reviewLimiter, async (req, res) => {
+  if (req.body?.website) throw new HttpError(400, 'SPAM');
+  const d = reviewInput.parse(req.body);
+  const review = await Review.create({ ...d, scope: 'site', name: cleanText(d.name), comment: cleanText(d.comment), email: d.email || undefined, lang: LANGS.includes(d.lang) ? d.lang : undefined });
+  sendMail({ to: config.teamEmail, subject: `Nouvel avis sur le site ${'★'.repeat(d.rating)}`,
+    html: `<p><b>${escHtml(review.name)}</b> — ${d.rating}/5</p><p>${escHtml(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis clients ».</p>` });
+  res.status(201).json({ ok: true, pending: true });
+});
+
 r.post('/excursions/:id/reviews', reviewLimiter, async (req, res) => {
   if (req.body?.website) throw new HttpError(400, 'SPAM'); // champ piège rempli = robot
   const id = objectId.parse(req.params.id);
-  const d = z.object({
-    name: z.string().trim().min(2).max(60),
-    email: z.string().trim().email().max(120).optional().or(z.literal('')),
-    rating: z.coerce.number().int().min(1).max(5),
-    comment: z.string().trim().max(2000).optional().default(''),
-    lang: z.string().optional(),
-  }).parse(req.body);
+  const d = reviewInput.parse(req.body);
   const e = await Excursion.findOne({ _id: id, published: true }).select('title').lean();
   if (!e) throw new HttpError(404, 'NOT_FOUND');
   const review = await Review.create({ ...d, name: cleanText(d.name), comment: cleanText(d.comment), email: d.email || undefined, lang: LANGS.includes(d.lang) ? d.lang : undefined, excursion: id });
@@ -211,7 +232,7 @@ r.get('/transfers/config', async (req, res) => {
 const transferSchema = z.object({
   fromId: z.string().optional(), toId: z.string().optional(), fromZone: z.string().optional(), toZone: z.string().optional(),
   datetime: z.string(), flightNumber: z.string().optional(),
-  passengers: z.object({ adult: z.number().int().min(1), child: z.number().int().min(0).default(0), infant: z.number().int().min(0).default(0) }),
+  passengers: z.object({ adult: z.number().int().min(1).max(50), child: z.number().int().min(0).max(50).default(0), infant: z.number().int().min(0).max(50).default(0) }),
   luggage: z.number().int().min(0).default(0), childSeats: z.number().int().min(0).default(0), nameSign: z.boolean().default(false), extraStops: z.number().int().min(0).default(0),
   roundTrip: z.boolean().default(false), returnDatetime: z.string().optional(),
   promoCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
@@ -243,11 +264,17 @@ const itemSchema = z.object({
 });
 const bookingSchema = z.object({
   items: z.array(itemSchema).min(1).max(10),
-  customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), city: z.string().max(80).transform(cleanText).optional(), nationality: z.string().trim().max(60).optional(), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
+  customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), city: z.string().max(80).transform(cleanText).optional(), nationality: z.string().trim().min(2).max(60), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
   promoCode: z.string().optional(), partnerCode: z.string().optional(),
   currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
   consent: z.object({ terms: z.boolean(), cancellation: z.literal(true) }),
   captchaToken: z.string().optional(), website: z.string().optional(),
+}).superRefine((b, ctx) => {
+  // Excursion : la ville et l'hôtel servent à la prise en charge
+  if (b.items.some((i) => i.type === 'excursion')) {
+    if (!b.customer.city?.trim()) ctx.addIssue({ code: 'custom', path: ['customer', 'city'], message: 'Ville de l’hôtel obligatoire' });
+    if (!b.customer.hotel?.trim()) ctx.addIssue({ code: 'custom', path: ['customer', 'hotel'], message: 'Hôtel obligatoire' });
+  }
 });
 
 r.post('/bookings', formLimiter, antiSpam, async (req, res) => {
@@ -337,3 +364,4 @@ r.get('/redirect', async (req, res) => {
 });
 
 export default r;
+export { bookingSchema };

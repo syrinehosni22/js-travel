@@ -164,7 +164,7 @@ export default function ExcursionDetail() {
   return (
     <>
       <Seo title={seo.metaTitle || e.title} description={seo.metaDescription || e.summary} canonical={seo.canonical || path(lang, 'excursions', e.slug)}
-        alternates={alternates} image={seo.ogImage || e.images?.[0]?.url} noindex={seo.index === false} jsonLd={jsonLd} />
+        alternates={alternates} image={seo.ogImage || e.images?.[0]?.url} noindex={seo.index === false} jsonLd={jsonLd} keywords={[seo?.focusKeyword, ...(seo?.secondaryKeywords || [])]} />
       <div className="container gyg">
         <nav aria-label={t('common.breadcrumb')} className="gyg-crumbs">
           <a href={`/${lang}`}>{t('nav.home')}</a><span aria-hidden="true">›</span><a href={path(lang, 'excursions')}>{t('nav.excursions')}</a>{e.category && <><span aria-hidden="true">›</span><a href={`${path(lang, 'excursions')}?category=${e.category}`}>{t(`cat.${e.category}`)}</a></>}

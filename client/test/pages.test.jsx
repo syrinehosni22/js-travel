@@ -1,6 +1,6 @@
 /** Test de rendu des pages principales avec une API simulée (aucune base nécessaire). */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
 import '../src/i18n.js';
@@ -21,6 +21,7 @@ const routes = {
   '/api/posts': [],
   '/api/excursions/excursion-carthage-sidi-bou-said': excursion,
   '/api/excursions/e1/availability': {},
+  '/api/reviews': (b) => (b && b.rating ? { ok: true, pending: true } : { list: [{ id: 's1', name: 'Karim', rating: 5, comment: 'Équipe au top', createdAt: '2026-11-01' }], rating: { value: 5, count: 1 } }),
   '/api/excursions/e1/reviews': [{ id: 'r1', name: 'Amel', rating: 5, comment: 'Journée magique', reply: 'Merci Amel !', createdAt: '2026-10-01' }, { id: 'r2', name: 'Tom', rating: 4, comment: '', createdAt: '2026-09-01' }],
   '/api/transfers/locations': [{ id: 'l1', name: 'Aéroport Monastir (MIR)', type: 'airport', zone: 'monastir-airport' }],
 };
@@ -143,20 +144,46 @@ describe('site public', () => {
       fireEvent.click(screen.getByRole('checkbox', { name: /Ajouter un guide/ }));
       fireEvent.change(screen.getByLabelText(/Ville de votre hôtel/), { target: { value: 'Nabeul' } });
       await waitFor(() => expect(screen.getAllByText(/190,00/).length).toBeGreaterThan(0), { timeout: 3000 });
-      expect(screen.getByText(/Transfert \(Nabeul\)/)).toBeTruthy();
+      expect(screen.getByText(/Déplacement \(Nabeul\)/)).toBeTruthy();
       fireEvent.change(screen.getByLabelText(/Ville de votre hôtel/), { target: { value: 'Tozeur' } });
-      expect(await screen.findByText(/Transfert depuis Tozeur : prix confirmé/, {}, { timeout: 3000 })).toBeTruthy();
+      expect(await screen.findByText(/Déplacement depuis Tozeur : prix confirmé/, {}, { timeout: 3000 })).toBeTruthy();
       fireEvent.change(screen.getByLabelText(/Nom complet/), { target: { value: 'Amel Ben' } });
       fireEvent.change(screen.getByLabelText(/E-mail/), { target: { value: 'a@b.tn' } });
       fireEvent.change(screen.getByLabelText(/Téléphone/), { target: { value: '+21600000000' } });
       fireEvent.change(screen.getByLabelText(/Nationalité/), { target: { value: 'TN' } });
+      fireEvent.change(screen.getByLabelText(/^Hôtel/), { target: { value: 'Hôtel Marhaba' } });
       fireEvent.click(screen.getByRole('checkbox', { name: /J’accepte/ }));
       fireEvent.click(screen.getByRole('button', { name: /Envoyer ma demande/ }));
       await waitFor(() => expect(global.fetch.mock.calls.some(([u, o]) => String(u).includes('/api/bookings') && o?.method === 'POST')).toBe(true));
       const sent = JSON.parse(global.fetch.mock.calls.find(([u, o]) => String(u).includes('/api/bookings') && o?.method === 'POST')[1].body);
-      expect(sent.customer).toMatchObject({ nationality: 'TN', city: 'Tozeur' });
+      expect(sent.customer).toMatchObject({ nationality: 'TN', city: 'Tozeur', hotel: 'Hôtel Marhaba' });
       expect(sent.items[0]).toMatchObject({ guide: true, city: 'Tozeur' });
     } finally { delete routes['/api/excursions/e1/quote']; delete routes['/api/bookings']; }
+  });
+  it('mots-clés du site ajoutés à toutes les pages, avec ceux de la fiche', async () => {
+    const before = routes['/api/settings'];
+    routes['/api/settings'] = { ...before, siteKeywords: ['excursion Tunisie', 'transfert aéroport'] };
+    routes['/api/excursions/excursion-carthage-sidi-bou-said'] = { ...excursion, seo: { metaTitle: 'Titre SEO', focusKeyword: 'excursion Carthage', secondaryKeywords: ['Sidi Bou Saïd'] } };
+    try {
+      renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');
+      await screen.findByRole('heading', { level: 1 });
+      await waitFor(() => expect(document.querySelector('meta[name="keywords"]')?.getAttribute('content')).toBe('excursion Carthage, Sidi Bou Saïd, excursion Tunisie, transfert aéroport'));
+    } finally { routes['/api/settings'] = before; routes['/api/excursions/excursion-carthage-sidi-bou-said'] = excursion; }
+  });
+  it('bouton « Avis » à côté de WhatsApp : avis global sur le site, et avis publiés sur l’accueil', async () => {
+    renderAt('/fr');
+    expect(await screen.findByText('Équipe au top')).toBeTruthy();
+    expect(screen.getByRole('heading', { name: '5 / 5 · 1' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Votre avis sur JS Travel' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Votre avis sur JS Travel' });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publier mon avis' }));
+    expect(await within(dialog).findByText(/Choisissez une note/)).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole('radio', { name: '5 étoiles' }));
+    fireEvent.change(within(dialog).getByLabelText(/Prénom/), { target: { value: 'Lina' } });
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Publier mon avis' }));
+    expect(await within(dialog).findByText(/publié après vérification/)).toBeTruthy();
+    const post = global.fetch.mock.calls.find(([u, o]) => String(u).endsWith('/api/reviews') && o?.method === 'POST');
+    expect(JSON.parse(post[1].body)).toMatchObject({ name: 'Lina', rating: 5 });
   });
   it('fiche excursion sans vidéo : pas d’espace vidéo', async () => {
     renderAt('/fr/excursions/excursion-carthage-sidi-bou-said');

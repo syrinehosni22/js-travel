@@ -29,6 +29,7 @@ export const TransferConfig = mongoose.model('TransferConfig', new mongoose.Sche
   },
   returnDiscount: { type: Number, default: 10 },
   minNoticeHours: { type: Number, default: 12 },
+  groups: { onRequestAbove: { type: Number, default: 20 }, maxPassengers: { type: Number, default: 50 } },   // transferts de groupe
   hourlyHire: { pricePerHour: Number, pricePerDay: Number },
 }, { timestamps: true }));
 

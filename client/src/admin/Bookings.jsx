@@ -23,6 +23,9 @@ function useDeleteBooking() {
 /** Fiche détaillée : statut, montant encaissé, renvoi des bons (§7.1) */
 function BookingDrawer({ id, onClose, onSaved }) {
   const { data: b, reload, error } = useLoad(() => adminApi.get(`/bookings/${id}`), [id]);
+  // Texte de la réservation pour l'envoi par WhatsApp (au client ou à un contact : chauffeur, guide, partenaire…)
+  const [waText, setWaText] = useState('');
+  useEffect(() => { adminApi.get(`/bookings/${id}/whatsapp-text`).then((r) => setWaText(r.text)).catch(() => setWaText('')); }, [id, b?.updatedAt]);
   const [toast, say] = useToast();
   const [collected, setCollected] = useState('');
   useEffect(() => { if (b) setCollected(b.collectedAmount ?? b.totalEur); }, [b]);
@@ -87,9 +90,9 @@ function BookingDrawer({ id, onClose, onSaved }) {
             {i.transfer && <span className="muted">{i.transfer.from} → {i.transfer.to} · {i.transfer.vehicle} {i.transfer.flightNumber && `· vol ${i.transfer.flightNumber}`}</span>}
             {i.options?.length > 0 && <span className="muted">Options : {i.options.join(', ')}</span>}
             {(i.lines || []).filter((l) => l.key === 'guide' || l.key === 'cityTransfer').map((l, k) => (
-              <span key={k} className="muted">{l.key === 'guide' ? 'Guide en option' : `Transfert depuis ${l.label}`} : {eur(l.amount)}</span>
+              <span key={k} className="muted">{l.key === 'guide' ? 'Guide en option' : `Déplacement depuis ${l.label}`} : {eur(l.amount)}</span>
             ))}
-            {i.cityTransferOnRequest && <span className="alert alert--warn" style={{ margin: 0 }}>Hôtel à {i.city} : transfert sans prix configuré — à confirmer avec le client.</span>}
+            {i.cityTransferOnRequest && <span className="alert alert--warn" style={{ margin: 0 }}>Hôtel à {i.city} : déplacement sans prix configuré — à confirmer avec le client.</span>}
             {canEdit && (
               <label className="lbl" style={{ maxWidth: 220 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
             )}
@@ -107,6 +110,13 @@ function BookingDrawer({ id, onClose, onSaved }) {
             <label className="lbl" style={{ flex: 1 }}>Montant encaissé (EUR)<input className="inp" type="number" step="0.01" value={collected} onChange={(e) => setCollected(e.target.value)} /></label>
             <button className="btn btn--green btn-sm" style={{ alignSelf: 'flex-end' }}>Enregistrer</button>
           </form>
+          {waText && (
+            <div className="row">
+              <a className="btn btn--whatsapp btn-sm" href={`https://wa.me/?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">Envoyer via WhatsApp</a>
+              {b.customer?.phone && <a className="btn btn--outline btn-sm" href={`https://wa.me/${b.customer.phone.replace(/\D/g, '')}?text=${encodeURIComponent(waText)}`} target="_blank" rel="noreferrer">WhatsApp au client</a>}
+              <button type="button" className="btn btn--outline btn-sm" onClick={() => navigator.clipboard?.writeText(waText).then(() => say('Texte copié'))}>Copier le texte</button>
+            </div>
+          )}
           <div className="row">
             <button className="btn btn--outline btn-sm" onClick={() => adminApi.post(`/bookings/${id}/resend`).then(() => say('Bon renvoyé'))}>Renvoyer le bon</button>
             <a className="btn btn--outline btn-sm" href={`${API_URL}/api/bookings/${b.ref}/voucher.pdf?token=${b.token}`} target="_blank" rel="noreferrer">Voir le PDF</a>

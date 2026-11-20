@@ -344,8 +344,16 @@ export function fromPrice(excursion, season = 'mid') {
  * request = { fromZone, toZone, distanceKm?, datetime, passengers: {adult, child, infant}, luggage,
  *             childSeats, nameSign, extraStops, roundTrip, returnDatetime }
  */
-export function computeTransferQuotes({ grid = [], vehicles = [], supplements = {}, returnDiscount = 0 }, request, ctx = {}) {
+/** Libellé du transport de groupe proposé sur demande */
+export const GROUP_LABEL = { fr: 'Minibus ou autocar (groupe)', en: 'Minibus or coach (group)', de: 'Kleinbus oder Reisebus (Gruppe)', it: 'Minibus o pullman (gruppo)', es: 'Minibús o autocar (grupo)' };
+
+export function computeTransferQuotes({ grid = [], vehicles = [], supplements = {}, returnDiscount = 0, groups = {} }, request, ctx = {}) {
   const pax = (request.passengers?.adult || 0) + (request.passengers?.child || 0) + (request.passengers?.infant || 0);
+  // Groupes : au-delà de « onRequestAbove » passagers (20 par défaut), prix sur demande ; maximum « maxPassengers » (50)
+  const above = groups.onRequestAbove ?? 20;
+  const max = groups.maxPassengers ?? 50;
+  if (pax > max) return [];
+  if (pax > above) return [{ vehicle: 'group', label: GROUP_LABEL, minPassengers: above + 1, maxPassengers: max, onRequest: true, group: true, lines: [], totalEur: null, total: null, night: false }];
   const luggage = +request.luggage || 0;
   const hour = request.datetime ? new Date(request.datetime).getHours() : 12;
   const nf = supplements.nightFrom ?? 22, nt = supplements.nightTo ?? 6;

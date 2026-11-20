@@ -460,7 +460,7 @@ button, input, select { font: inherit; color: inherit; }
 }
 
 /* ---------- Avis clients ---------- */
-.stars-meter { position: relative; display: inline-block; line-height: 0; vertical-align: middle; }
+.stars-meter { position: relative; display: inline-block; line-height: 0; vertical-align: middle; width: max-content; align-self: flex-start; }
 .stars-row { display: inline-flex; gap: 2px; white-space: nowrap; }
 .stars-meter__fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; }
 .reviews__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 6px 0 16px; }
@@ -642,3 +642,26 @@ button, input, select { font: inherit; color: inherit; }
 /* Formulaire final : options guide / transfert sous chaque excursion */
 .checkout-extras { display: grid; gap: 8px; padding: 12px 14px; background: var(--bg-alt, #F6F3EC); box-shadow: none; }
 .checkout-extras .check span { line-height: 1.4; }
+
+/* Recherches populaires (mots-clés du site) */
+.popular-searches { padding-top: 32px; padding-bottom: 32px; }
+.popular-searches__list { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+.popular-searches__list a { display: inline-block; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); background: #fff; color: var(--ink); text-decoration: none; font-weight: 500; font-size: 15px; }
+.popular-searches__list a:hover { border-color: var(--gold); }
+
+/* Champs obligatoires : légende et champs manquants en rouge après une tentative d'envoi */
+.form-legend { margin: 0; font-size: 13px; }
+.was-validated input:invalid, .was-validated select:invalid, .was-validated textarea:invalid { border-color: #B42318; box-shadow: 0 0 0 3px rgba(180, 35, 24, .12); }
+.was-validated .check input:invalid { outline: 2px solid #B42318; outline-offset: 2px; }
+
+/* Bouton « Avis » à côté de WhatsApp + fenêtre de saisie */
+.fab--review { bottom: 32px; right: 92px; width: auto; height: 44px; padding: 0 16px; border-radius: 999px; display: inline-flex; gap: 6px; align-items: center; background: var(--gold); color: var(--green-dark, #14213D); font: inherit; font-weight: 600; }
+.fab--review-alone { right: 24px; }
+.fab--review:focus-visible { outline: 3px solid var(--green-dark, #14213D); outline-offset: 2px; }
+@media (max-width: 640px) { .fab--review { bottom: 102px; right: 88px; height: 44px; padding: 0 12px; } .fab--review-alone { right: 16px; } }
+.modal { position: fixed; inset: 0; z-index: 100; background: rgba(11,21,41,.55); display: grid; place-items: center; padding: 16px; }
+.modal__box { position: relative; width: min(560px, 100%); max-height: calc(100vh - 32px); overflow: auto; background: #fff; border-radius: var(--radius); padding: 24px; box-shadow: var(--shadow); }
+.modal__close { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--bg-alt); cursor: pointer; display: grid; place-items: center; }
+.btn--gold-outline { border: 1px solid var(--gold); color: var(--gold); background: transparent; }
+.review .stars-row { gap: 3px; }
+.review .stars-meter > .stars-row { color: rgba(255,255,255,.22) !important; }

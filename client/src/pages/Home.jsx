@@ -11,6 +11,8 @@ import { waLink } from '../whatsapp.js';
 
 import { DEFAULT_SLIDES, DEFAULT_DESTINATIONS, BANNER_TARGETS } from '../homeDefaults.js';
 import { PHOTOS } from '../images.js';
+import PopularSearches from '../components/PopularSearches.jsx';
+import { SiteReviewList, useSiteReviews, openSiteReview } from '../components/SiteReviews.jsx';
 
 function Hero() {
   const { t } = useTranslation();
@@ -108,6 +110,9 @@ export default function Home() {
   const { data: posts } = useFetch(() => api.get('/posts?limit=3', { lang }), [lang]);
   const seo = settings?.seoHome || {};
   const reviews = settings?.reviews;
+  const siteReviews = useSiteReviews();
+  // Note affichée : avis laissés sur le site si il y en a, sinon la note saisie dans Paramètres
+  const shownRating = siteReviews?.rating?.count ? { rating: siteReviews.rating.value, count: siteReviews.rating.count } : reviews;
   const included = t('home.included');
   const home = settings?.home || {};
   const banner = home.banner || {};
@@ -116,9 +121,11 @@ export default function Home() {
     <>
       <Seo
         title={seo.metaTitle || t('hero.eyebrow')}
+        keywords={[seo?.focusKeyword, ...(seo?.secondaryKeywords || [])]}
         description={seo.metaDescription || t('hero.text')}
         alternates={Object.fromEntries(LANGS.map((l) => [l, `/${l}`]))}
         jsonLd={{ '@context': 'https://schema.org', '@type': 'LocalBusiness', name: 'JS Travel Tunisia', logo: `${location.origin}/brand/icon-512.png`, telephone: settings?.contact?.phone, address: settings?.contact?.address,
+          ...(settings?.siteKeywords?.length > 0 && { keywords: settings.siteKeywords.join(', ') }),
           ...(reviews?.rating && { aggregateRating: { '@type': 'AggregateRating', ratingValue: reviews.rating, reviewCount: reviews.count } }) }}
       />
       <Hero />
@@ -180,13 +187,15 @@ export default function Home() {
       <section className="section section--dark">
         <div className="container">
           <div className="section__head">
-            <div><span className="eyebrow">{t('home.reviews')}</span><h2 className="section__title">{reviews?.rating ? `${reviews.rating} / 5 · ${reviews.count}` : t('home.reviews')}</h2></div>
+            <div><span className="eyebrow">{t('home.reviews')}</span><h2 className="section__title">{shownRating?.rating ? `${shownRating.rating} / 5 · ${shownRating.count}` : t('home.reviews')}</h2></div>
             <div className="review-links">
+              <button type="button" className="btn btn--gold-outline" onClick={openSiteReview}>{t('rev.leaveSite')}</button>
               {settings?.social?.tripadvisor && <a href={settings.social.tripadvisor} target="_blank" rel="noopener noreferrer">{t('home.readAll')}</a>}
               {settings?.social?.googleReviews && <a href={settings.social.googleReviews} target="_blank" rel="noopener noreferrer">{t('home.leave')}</a>}
             </div>
           </div>
           {/* Emplacement du widget unifié Tripadvisor + Google (script fourni par le prestataire d'avis) */}
+          <SiteReviewList list={siteReviews?.list} />
           <div id="reviews-widget" className="review-grid" />
         </div>
       </section>
@@ -205,6 +214,8 @@ export default function Home() {
           </div>
         </section>
       )}
+
+      <PopularSearches tours={tours} />
 
       {settings?.faq?.length > 0 && (
         <section className="section section--alt">

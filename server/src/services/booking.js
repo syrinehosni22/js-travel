@@ -100,7 +100,7 @@ export async function transferQuotes(request, { promoCode, currency = 'EUR' } = 
   const discount = await resolveDiscount({ promoCode, date: request.datetime });
   const rate = (await rateFor(currency)) || 1;
   const vehicles = cfg.vehicles.map((v) => ({ ...v, label: v.label }));
-  const quotes = computeTransferQuotes({ grid: cfg.grid, vehicles, supplements: cfg.supplements, returnDiscount: cfg.returnDiscount },
+  const quotes = computeTransferQuotes({ grid: cfg.grid, vehicles, supplements: cfg.supplements, returnDiscount: cfg.returnDiscount, groups: cfg.groups },
     { ...request, fromZone, toZone }, { discount, rate });
   return { quotes, from, to, fromZone, toZone, minNoticeHours: cfg.minNoticeHours };
 }

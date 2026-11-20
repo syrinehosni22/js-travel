@@ -33,6 +33,16 @@ export default function SettingsAdmin() {
       <Top title="Paramètres"><button className="btn btn--green" onClick={save}>Enregistrer</button></Top>
       <Err error={err} />
       <div className="stack">
+        <SiteSeoPanel s={s} set={set} lang={lang} setLang={setLang} />
+
+        <WhatsAppAlertsPanel s={s} set={set} />
+
+        <section className="panel stack">
+          <h2 style={{ fontSize: 18 }}>Commission</h2>
+          <p className="muted" style={{ margin: 0 }}>Calculée sur les réservations réglées ou terminées (Rapports → Commission, export Excel).</p>
+          <div className="grid-2">{inp('commission.name', 'Bénéficiaire')}{inp('commission.percent', 'Taux de commission (%)', 'number')}</div>
+        </section>
+
         <AboutPanel s={s} set={set} lang={lang} setLang={setLang} />
 
         <FollowPanel s={s} set={set} />
@@ -79,7 +89,7 @@ export default function SettingsAdmin() {
 
         <section className="panel stack">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2 style={{ fontSize: 18 }}>FAQ, pages légales et SEO de l’accueil</h2>
+            <h2 style={{ fontSize: 18 }}>FAQ et pages légales</h2>
             <div className="tabs" style={{ margin: 0, border: 0 }}>{LANGS.map((l) => <button key={l} aria-selected={lang === l} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}</div>
           </div>
           {(s.faq || []).map((f, i) => (
@@ -93,7 +103,6 @@ export default function SettingsAdmin() {
           {[['legal.privacy', 'Politique de confidentialité'], ['legal.cancellation', 'Politique d’annulation'], ['legal.terms', 'Conditions générales']].map(([p, l]) => (
             <label key={p} className="lbl">{l} ({lang.toUpperCase()})<textarea className="inp" rows={5} value={getPath(s, `${p}.${lang}`) || ''} onChange={(e) => set(`${p}.${lang}`, e.target.value)} /></label>
           ))}
-          <div className="grid-2">{inp(`seoHome.${lang}.metaTitle`, `Titre SEO de l’accueil (${lang.toUpperCase()})`)}{inp(`seoHome.${lang}.metaDescription`, `Méta description de l’accueil (${lang.toUpperCase()})`)}</div>
         </section>
 
         <section className="panel stack">
@@ -115,6 +124,73 @@ export default function SettingsAdmin() {
 }
 
 /** Rubrique « Notre entreprise » de l'accueil : texte, photo, vidéo et chiffres clés */
+/** Alerte WhatsApp envoyée à l'équipe à chaque nouvelle réservation */
+function WhatsAppAlertsPanel({ s, set }) {
+  const n = s.notifications || {};
+  const [test, setTest] = useState(null);
+  async function run() {
+    setTest({ busy: true });
+    try { setTest(await adminApi.post('/notifications/test')); } catch (x) { setTest({ error: x }); }
+  }
+  return (
+    <section className="panel stack">
+      <h2 style={{ fontSize: 18 }}>Alertes WhatsApp (nouvelles réservations)</h2>
+      <p className="muted" style={{ margin: 0 }}>À chaque nouvelle réservation, un message WhatsApp avec le détail (client, hôtel, excursions, total) est envoyé à ces numéros.</p>
+      <div className="grid-2">
+        <label className="lbl">Numéro(s) WhatsApp de l’admin — format international, séparés par des virgules
+          <input className="inp" placeholder="+216 20 000 000" value={n.adminWhatsapp || ''} onChange={(e) => set('notifications.adminWhatsapp', e.target.value)} /></label>
+        <label className="lbl">Clé CallMeBot (si vous n’avez pas l’API WhatsApp Business)
+          <input className="inp" type="password" autoComplete="off" value={n.callmebotKey || ''} onChange={(e) => set('notifications.callmebotKey', e.target.value)} /></label>
+      </div>
+      <details>
+        <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Comment obtenir la clé CallMeBot (gratuit, 2 minutes)</summary>
+        <ol className="muted" style={{ fontSize: 14 }}>
+          <li>Ouvrez la <a href="https://www.callmebot.com/blog/free-api-whatsapp-messages/" target="_blank" rel="noreferrer">page officielle CallMeBot</a> et enregistrez le numéro du robot indiqué (il change de temps en temps) dans les contacts du téléphone de l’admin.</li>
+          <li>Envoyez-lui par WhatsApp le message : <b>I allow callmebot to send me messages</b></li>
+          <li>Vous recevez une clé (apikey) : collez-la ci-dessus, enregistrez, puis cliquez sur « Envoyer un test ».</li>
+          <li>La clé est liée au numéro qui l’a demandée : mettez un seul numéro d’admin avec CallMeBot. Pour plusieurs numéros, utilisez l’API WhatsApp Business (variables WHATSAPP_TOKEN et WHATSAPP_PHONE_ID du serveur).</li>
+        </ol>
+      </details>
+      <div className="row">
+        <button type="button" className="btn btn--outline btn-sm" disabled={test?.busy} onClick={run}>{test?.busy ? 'Envoi…' : 'Envoyer un test'}</button>
+        <small className="muted">Enregistrez d’abord les paramètres.</small>
+      </div>
+      {test?.error && <Err error={test.error} />}
+      {test?.results && (test.results.length === 0
+        ? <p className="alert alert--warn" style={{ margin: 0 }}>Aucun numéro enregistré.</p>
+        : test.results.map((r) => <p key={r.phone} className={`alert ${r.ok ? 'alert--ok' : 'alert--warn'}`} style={{ margin: 0 }}>+{r.phone} : {r.ok ? 'message envoyé' : `échec — ${r.error || 'erreur inconnue'}`}</p>))}
+    </section>
+  );
+}
+
+/** Mots-clés de tout le site (balise keywords de chaque page + données structurées de l'accueil) et SEO de l'accueil */
+function SiteSeoPanel({ s, set, lang, setLang }) {
+  const raw = getPath(s, `siteKeywords.${lang}`) || '';
+  const list = raw.split(',').map((k) => k.trim()).filter(Boolean);
+  const home = getPath(s, `seoHome.${lang}`) || {};
+  return (
+    <section className="panel stack">
+      <div className="row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
+        <h2 style={{ fontSize: 18 }}>Référencement du site (SEO global)</h2>
+        <div className="tabs">{LANGS.map((l) => <button type="button" key={l} aria-selected={l === lang} onClick={() => setLang(l)}>{l.toUpperCase()}</button>)}</div>
+      </div>
+      <label className="lbl">Mots-clés du site ({lang.toUpperCase()}) — séparés par des virgules
+        <textarea className="inp" rows={3} value={raw} onChange={(e) => set(`siteKeywords.${lang}`, e.target.value)}
+          placeholder="excursion Tunisie, excursion Sousse, sortie désert Sahara, transfert aéroport Monastir, Sidi Bou Saïd" />
+      </label>
+      {list.length > 0 && <div className="row" style={{ flexWrap: 'wrap', gap: 6 }}>{list.map((k) => <span key={k} className="chip" style={{ minHeight: 30, padding: '4px 12px', cursor: 'default' }}>{k}</span>)}</div>}
+      <p className="muted" style={{ margin: 0, fontSize: 14 }}>Ajoutés à toutes les pages du site, en plus des mots-clés propres à chaque excursion. Saisissez-les en français : les autres langues vides sont traduites automatiquement à l’enregistrement.</p>
+      <div className="grid-2">
+        <label className="lbl">Mot-clé principal de l’accueil ({lang.toUpperCase()})<input className="inp" value={home.focusKeyword || ''} onChange={(e) => set(`seoHome.${lang}.focusKeyword`, e.target.value)} placeholder="excursions privées en Tunisie" /></label>
+        <label className="lbl">Mots-clés secondaires de l’accueil<input className="inp" value={(home.secondaryKeywords || []).join(', ')} onChange={(e) => set(`seoHome.${lang}.secondaryKeywords`, e.target.value.split(',').map((x) => x.trim()).filter(Boolean))} /></label>
+        <label className="lbl">Titre SEO de l’accueil ({(home.metaTitle || '').length}/60)<input className="inp" value={home.metaTitle || ''} onChange={(e) => set(`seoHome.${lang}.metaTitle`, e.target.value)} /></label>
+        <label className="lbl">Méta description de l’accueil ({(home.metaDescription || '').length}/160)<input className="inp" value={home.metaDescription || ''} onChange={(e) => set(`seoHome.${lang}.metaDescription`, e.target.value)} /></label>
+      </div>
+      <p className="muted" style={{ margin: 0, fontSize: 14 }}>Conseil : Google classe surtout grâce au <b>titre SEO</b>, à la <b>méta description</b> et au <b>texte des pages</b>. Reprenez vos mots-clés dans ces champs et dans les textes des excursions (onglet SEO de chaque excursion).</p>
+    </section>
+  );
+}
+
 function AboutPanel({ s, set, lang, setLang }) {
   const a = s.about || {};
   const [busy, setBusy] = useState('');

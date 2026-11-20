@@ -150,3 +150,21 @@ test('transfert : ville de départ ou zone = gratuit, autre ville = prix configu
   assert.equal(far.cityTransferOnRequest, 'Tozeur');
   assert.equal(computeExcursionPrice(withExtras, { participants: { adult: 2 }, city: 'Monastir' }).cityTransferOnRequest, undefined);
 });
+
+/* ---------- Transferts de groupe ---------- */
+test('transferts : au-delà de 20 personnes sur demande, maximum 50', () => {
+  const cfg = { vehicles: [{ key: 'sedan', label: 'Berline', minPassengers: 1, maxPassengers: 4 }, { key: 'bus', label: 'Minibus', minPassengers: 5, maxPassengers: 30 }],
+    grid: [{ fromZone: 'a', toZone: 'b', vehicle: 'sedan', price: 30 }, { fromZone: 'a', toZone: 'b', vehicle: 'bus', price: 90 }] };
+  const q = (n, groups) => computeTransferQuotes({ ...cfg, groups }, { fromZone: 'a', toZone: 'b', passengers: { adult: n } });
+  assert.equal(q(3)[0].totalEur, 30);
+  assert.equal(q(20)[0].totalEur, 90);
+  const g = q(21);
+  assert.equal(g.length, 1);
+  assert.equal(g[0].onRequest, true);
+  assert.equal(g[0].group, true);
+  assert.equal(g[0].minPassengers, 21);
+  assert.equal(g[0].maxPassengers, 50);
+  assert.equal(q(50)[0].onRequest, true);
+  assert.deepEqual(q(51), []);
+  assert.equal(q(25, { onRequestAbove: 30, maxPassengers: 60 })[0].totalEur, 90);   // réglage admin
+});

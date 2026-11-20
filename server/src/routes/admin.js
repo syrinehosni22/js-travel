@@ -9,10 +9,12 @@ import { refreshRating } from '../services/reviews.js';
 import { auth, allow, audit, signToken } from '../middleware.js';
 import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
-import { notifyStatus, sendDriverRoadmap } from '../services/notify.js';
+import { notifyStatus, sendDriverRoadmap, notifyAdminWhatsApp, bookingText } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
 import { byDisplayOrder } from '../lib/order.js';
+import { commissionRows, PAID_STATUSES } from '../lib/commission.js';
+import { commissionWorkbook } from '../services/commission.js';
 import { seoSummary } from '../services/seoSummary.js';
 import { cleanText } from '../services/text.js';
 import { LANGS, config } from '../config.js';
@@ -464,9 +466,24 @@ crud(Partner, 'partners');
 crud(Post, 'posts', ['editor', 'manager']);
 crud(Message, 'messages');
 
+/* Test de l'alerte WhatsApp équipe (Admin → Paramètres) */
+r.post('/notifications/test', allow(), async (_req, res) => {
+  const results = await notifyAdminWhatsApp('JS Travel : test des alertes WhatsApp. Vous recevrez un message comme celui-ci à chaque nouvelle réservation.');
+  res.json({ results });
+});
+
+/* Texte prêt à envoyer par WhatsApp pour une réservation */
+r.get('/bookings/:id/whatsapp-text', allow('manager', 'partner'), async (req, res) => {
+  const b = await Booking.findById(req.params.id).lean();
+  if (!b) throw new HttpError(404, 'NOT_FOUND');
+  res.json({ text: bookingText(b).replace(/^Nouvelle réservation/, 'Réservation') });
+});
+
 /* ================= Avis clients : modération ================= */
 r.get('/reviews', allow('manager', 'editor'), async (req, res) => {
   const q = ['pending', 'approved', 'rejected'].includes(req.query.status) ? { status: req.query.status } : {};
+  if (req.query.scope === 'site') q.scope = 'site';
+  else if (req.query.scope === 'excursion') q.scope = { $ne: 'site' };
   const list = await Review.find(q).sort({ createdAt: -1 }).limit(500).populate('excursion', 'title slug').lean();
   const counts = Object.fromEntries((await Review.aggregate([{ $group: { _id: '$status', n: { $sum: 1 } } }])).map((x) => [x._id, x.n]));
   res.json({ list, counts });
@@ -475,13 +492,13 @@ r.put('/reviews/:id', allow('manager', 'editor'), async (req, res) => {
   const d = z.object({ status: z.enum(['pending', 'approved', 'rejected']).optional(), reply: z.string().max(2000).optional() }).parse(req.body);
   const rv = await Review.findByIdAndUpdate(req.params.id, d, { new: true });
   if (!rv) throw new HttpError(404, 'NOT_FOUND');
-  await refreshRating(rv.excursion);
+  if (rv.excursion) await refreshRating(rv.excursion);
   await audit(req, 'update', 'reviews', rv._id);
   res.json(rv);
 });
 r.delete('/reviews/:id', allow('manager'), async (req, res) => {
   const rv = await Review.findByIdAndDelete(req.params.id);
-  if (rv) { await refreshRating(rv.excursion); await audit(req, 'delete', 'reviews', rv._id); }
+  if (rv) { if (rv.excursion) await refreshRating(rv.excursion); await audit(req, 'delete', 'reviews', rv._id); }
   res.json({ ok: true });
 });
 crud(Waitlist, 'waitlist');
@@ -589,6 +606,25 @@ r.get('/reports/sales', allow('manager'), async (req, res) => {
 });
 
 /** Commissions partenaires */
+/* Commission (Syrine par défaut) sur les réservations abouties : tableau + Excel */
+r.get('/reports/commission', allow('manager'), async (req, res) => {
+  const s = await getSettings();
+  const now = new Date();
+  const from = /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+  const to = /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : now.toISOString().slice(0, 10);
+  const percent = req.query.percent !== undefined && req.query.percent !== '' ? Math.max(0, Math.min(100, +req.query.percent || 0)) : (s.commission?.percent ?? 10);
+  const name = s.commission?.name || 'Syrine';
+  const bookings = await Booking.find({ status: { $in: PAID_STATUSES }, firstServiceDate: { $gte: from, $lte: to } }).select('ref status firstServiceDate customer.name items.title items.status totalEur collectedAmount').lean();
+  const result = { name, from, to, ...commissionRows(bookings, percent) };
+  if (req.query.format === 'xlsx') {
+    const buf = await commissionWorkbook(result);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="commission-${name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}-${from}-${to}.xlsx"`);
+    return res.send(Buffer.from(buf));
+  }
+  res.json(result);
+});
+
 r.get('/reports/partners', allow('manager', 'partner'), async (req, res) => {
   const match = { status: { $in: ['paid_on_site', 'completed'] }, partner: { $ne: null } };
   if (req.user.role === 'partner') match.partner = req.user.partner;

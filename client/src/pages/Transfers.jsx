@@ -59,7 +59,7 @@ export default function Transfers() {
 
   return (
     <>
-      <Seo title={landing?.seo?.metaTitle || landing?.title || t('transfer.title')} description={landing?.seo?.metaDescription || t('transfer.subtitle')}
+      <Seo title={landing?.seo?.metaTitle || landing?.title || t('transfer.title')} description={landing?.seo?.metaDescription || t('transfer.subtitle')} keywords={[landing?.seo?.focusKeyword, ...(landing?.seo?.secondaryKeywords || [])]}
         alternates={Object.fromEntries(LANGS.map((l) => [l, landing?.slug?.[l] ? path(l, 'transfers', landing.slug[l]) : path(l, 'transfers')]))} />
       <div className="page-head page-head--photo"><Media photo="mahdia" alt="" sizes="100vw" eager /><div className="container">
         <h1>{landing?.title || t('transfer.title')}</h1>
@@ -75,7 +75,7 @@ export default function Transfers() {
               <article key={q.vehicle} className="card vehicle">
                 <div style={{ flex: '1 1 260px' }}>
                   <h3>{q.label}</h3>
-                  <p className="muted">{t('transfer.range', { min: q.minPassengers || 1, max: q.maxPassengers, l: q.maxLuggage })}</p>
+                  <p className="muted">{q.group ? t('transfer.groupRange', { min: q.minPassengers, max: q.maxPassengers }) : t('transfer.range', { min: q.minPassengers || 1, max: q.maxPassengers, l: q.maxLuggage })}</p>
                   {q.night && <span className="tag">{t('transfer.night')}</span>}
                 </div>
                 {q.onRequest ? (

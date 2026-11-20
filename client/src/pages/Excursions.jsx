@@ -5,6 +5,7 @@ import { api } from '../api.js';
 import { useApp, useFetch } from '../context.jsx';
 import { LANGS, path, langName, placeName } from '../i18n.js';
 import { Seo, TourCard, Loading, ErrorBox, Media } from '../components/ui.jsx';
+import PopularSearches from '../components/PopularSearches.jsx';
 
 /** Catalogue : filtres, tri et recherche (§5.1) */
 export default function Excursions() {
@@ -70,6 +71,7 @@ export default function Excursions() {
           {data && <div className="tour-grid">{data.map((e) => <TourCard key={e.id} e={e} />)}</div>}
         </div>
       </div>
+      <PopularSearches tours={data} />
     </>
   );
 }

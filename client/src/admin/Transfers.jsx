@@ -283,6 +283,12 @@ function Extras({ cfg, set }) {
           {N({ label: "Réserver au moins",  path: "minNoticeHours",  value: cfg.minNoticeHours,  suffix: "h avant" })}
         </div>
       </section>
+      <section className="panel stack"><h3>Groupes</h3>
+        <div className="grid-2">
+          {N({ label: "Prix sur demande au-delà de",  path: "groups.onRequestAbove",  value: cfg.groups?.onRequestAbove ?? 20,  suffix: "personnes",  hint: "le client demande un devis" })}
+          {N({ label: "Nombre maximum de passagers",  path: "groups.maxPassengers",  value: cfg.groups?.maxPassengers ?? 50,  suffix: "personnes" })}
+        </div>
+      </section>
       <section className="panel stack"><h3>Mise à disposition (chauffeur à l’heure)</h3>
         <div className="grid-2">
           {N({ label: "Par heure",  path: "hourlyHire.pricePerHour",  value: cfg.hourlyHire?.pricePerHour,  suffix: "€" })}

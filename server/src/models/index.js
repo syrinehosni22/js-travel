@@ -70,6 +70,14 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   legal: { privacy: L(), cancellation: L(), terms: L() },
   emailTemplates: Object,   // surcharges par clé et par langue
   seoHome: { type: SeoByLang(), default: () => ({}) },
+  siteKeywords: L(),
+  /** Commission versée sur les réservations réglées (Rapports → Commission) */
+  commission: { name: { type: String, default: 'Syrine' }, percent: { type: Number, default: 10 } },
+  /** Alertes WhatsApp à l'équipe (nouvelle réservation) */
+  notifications: {
+    adminWhatsapp: String,      // un ou plusieurs numéros, séparés par des virgules (format international)
+    callmebotKey: String,       // clé CallMeBot, si l'API WhatsApp Business n'est pas configurée
+  },        // mots-clés de tout le site, par langue (séparés par des virgules)
   /** Contenu modifiable de la page d'accueil (vide = textes et photos par défaut du site) */
   home: {
     hero: { title: L(), text: L(), slides: [String] },          // photos : clé de la photothèque ou /uploads/…
