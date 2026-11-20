@@ -168,3 +168,28 @@ test('transferts : au-delà de 20 personnes sur demande, maximum 50', () => {
   assert.deepEqual(q(51), []);
   assert.equal(q(25, { onRequestAbove: 30, maxPassengers: 60 })[0].totalEur, 90);   // réglage admin
 });
+
+test('minibus : un prix par tranche de passagers (8–10, 11–13, 14–16)', () => {
+  const cfg = {
+    vehicles: [
+      { key: 'van', minPassengers: 7, maxPassengers: 8, maxLuggage: 8 },
+      { key: 'minibus', minPassengers: 8, maxPassengers: 16, maxLuggage: 20, tiers: [{ from: 11, to: 13 }, { from: 8, to: 10 }, { from: 14, to: 16 }] },
+    ],
+    grid: [
+      { fromZone: 'a', toZone: 'b', vehicle: 'van', price: 60 },
+      { fromZone: 'a', toZone: 'b', vehicle: 'minibus', price: 80, minPax: 8, maxPax: 10 },
+      { fromZone: 'a', toZone: 'b', vehicle: 'minibus', price: 95, minPax: 11, maxPax: 13 },
+      { fromZone: 'a', toZone: 'b', vehicle: 'minibus', price: 110, minPax: 14, maxPax: 16 },
+    ],
+  };
+  const q = (n) => computeTransferQuotes(cfg, { fromZone: 'b', toZone: 'a', passengers: { adult: n }, datetime: '2026-08-14T12:00' });
+  assert.deepEqual(q(8).map((x) => [x.vehicle, x.totalEur]), [['van', 60], ['minibus', 80]]);
+  const m12 = q(12).find((x) => x.vehicle === 'minibus');
+  assert.equal(m12.totalEur, 95);
+  assert.equal(m12.minPassengers, 11); assert.equal(m12.maxPassengers, 13);
+  assert.equal(q(16)[0].totalEur, 110);
+  assert.equal(q(17).length, 0);   // aucune tranche ne couvre 17 personnes
+  // Tranche sans prix sur ce trajet : minibus non proposé
+  cfg.grid = cfg.grid.filter((g) => g.minPax !== 14);
+  assert.equal(q(15).length, 0);
+});

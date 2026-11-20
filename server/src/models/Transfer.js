@@ -20,8 +20,9 @@ export const Zone = mongoose.model('Zone', new mongoose.Schema({
 
 /** Configuration unique des transferts : véhicules, grille, suppléments (§4.3) */
 export const TransferConfig = mongoose.model('TransferConfig', new mongoose.Schema({
-  vehicles: [{ _id: false, key: String, label: L(), minPassengers: { type: Number, default: 1 }, maxPassengers: Number, maxLuggage: Number, perKm: Number, minFare: Number, onRequest: { type: Boolean, default: false } }],
-  grid: [{ _id: false, fromZone: String, toZone: String, vehicle: String, price: Number }],
+  vehicles: [{ _id: false, key: String, label: L(), minPassengers: { type: Number, default: 1 }, maxPassengers: Number, maxLuggage: Number, perKm: Number, minFare: Number, onRequest: { type: Boolean, default: false },
+    tiers: [{ _id: false, from: Number, to: Number }] }],   // tranches de passagers, un prix par tranche (ex. minibus 8–10, 11–13, 14–16)
+  grid: [{ _id: false, fromZone: String, toZone: String, vehicle: String, price: Number, minPax: Number, maxPax: Number }],
   supplements: {
     nightPercent: { type: Number, default: 20 }, nightFrom: { type: Number, default: 22 }, nightTo: { type: Number, default: 6 },
     childSeat: { type: Number, default: 5 }, nameSign: { type: Number, default: 0 }, extraStop: { type: Number, default: 10 },

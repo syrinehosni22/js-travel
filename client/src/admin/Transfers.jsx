@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { slugify } from '../lib/seo.js';
 import { adminApi } from '../api.js';
+import { vehicleTiers } from '../lib/pricing.js';
 import { useLoad, Top, Err, useToast, setPath, useConfirm, TRANSLATION_WARNING } from './shared.jsx';
 
 /**
@@ -21,6 +22,21 @@ const STANDARD_VEHICLES = [
 /** « 1–4 pers. · 4 valises · sur demande » */
 const cap = (v) => `${v.minPassengers || 1}–${v.maxPassengers} pers. · ${v.maxLuggage} valises${v.onRequest ? ' · sur demande' : ''}`;
 const key = (a, b) => `${a}|${b}`;
+/**
+ * Cases de prix d'un trajet : une par véhicule, ou une par tranche de passagers
+ * quand le véhicule a des tranches (ex. minibus 8–10, 11–13, 14–16).
+ */
+function priceSlots(vehicles) {
+  return vehicles.flatMap((v) => {
+    const name = v.label?.fr || v.key;
+    const tiers = vehicleTiers(v);
+    if (!tiers.length) return [{ id: v.key, vehicle: v.key, name, hint: cap(v) }];
+    return tiers.map((t) => ({ id: `${v.key}#${t.from}-${t.to}`, vehicle: v.key, minPax: t.from, maxPax: t.to, name: `${name} · ${t.from} à ${t.to} pers.`, hint: `${v.maxLuggage} valises` }));
+  });
+}
+/** La ligne de grille correspond-elle à cette case (même véhicule, même tranche) ? */
+const inSlot = (g, s) => g.vehicle === s.vehicle && (s.minPax == null ? g.minPax == null : g.minPax === s.minPax && g.maxPax === s.maxPax);
+const tierFields = (s) => (s.minPax == null ? {} : { minPax: s.minPax, maxPax: s.maxPax });
 const sameRoute = (g, a, b) => (g.fromZone === a && g.toZone === b) || (g.fromZone === b && g.toZone === a);
 
 export default function TransfersAdmin() {
@@ -79,6 +95,7 @@ function Prices({ cfg, update, zones, zl }) {
   const [add, setAdd] = useState({ from: '', to: '', prices: {} });
   const [msg, setMsg] = useState('');
   const vehicles = cfg.vehicles || [];
+  const slots = useMemo(() => priceSlots(vehicles), [vehicles]);
 
   // Coefficient de chaque véhicule par rapport au premier (calculé sur la grille existante)
   const factors = useMemo(() => {
@@ -105,10 +122,10 @@ function Prices({ cfg, update, zones, zl }) {
     return list.filter((r) => !needle || r.name.toLowerCase().includes(needle)).sort((a, b) => a.name.localeCompare(b.name, 'fr'));
   }, [cfg.grid, q, zones]); // eslint-disable-line
 
-  const price = (r, v) => cfg.grid.find((g) => g.fromZone === r.from && g.toZone === r.to && g.vehicle === v)?.price ?? '';
-  function setPrice(r, v, val) {
-    const rest = cfg.grid.filter((g) => !(g.fromZone === r.from && g.toZone === r.to && g.vehicle === v));
-    update({ ...cfg, grid: val === '' ? rest : [...rest, { fromZone: r.from, toZone: r.to, vehicle: v, price: +val }] });
+  const price = (r, s) => cfg.grid.find((g) => g.fromZone === r.from && g.toZone === r.to && inSlot(g, s))?.price ?? '';
+  function setPrice(r, s, val) {
+    const rest = cfg.grid.filter((g) => !(g.fromZone === r.from && g.toZone === r.to && inSlot(g, s)));
+    update({ ...cfg, grid: val === '' ? rest : [...rest, { fromZone: r.from, toZone: r.to, vehicle: s.vehicle, ...tierFields(s), price: +val }] });
   }
   const confirm = useConfirm();
   const remove = async (r) => {
@@ -120,11 +137,11 @@ function Prices({ cfg, update, zones, zl }) {
   const setAddPrice = (k, v) => setAdd({ ...add, prices: { ...add.prices, [k]: v } });
   // Propose les prix manquants à partir du premier prix saisi (coefficients tirés de la grille existante)
   function suggest() {
-    const ref = vehicles.find((v) => +add.prices[v.key] > 0);
+    const ref = slots.find((s) => +add.prices[s.id] > 0);
     if (!ref) return setMsg('Saisissez d’abord au moins un prix.');
-    const base = +add.prices[ref.key] / (factors[ref.key] || 1);
+    const base = +add.prices[ref.id] / (factors[ref.vehicle] || 1);
     const prices = { ...add.prices };
-    for (const v of vehicles) if (!(+prices[v.key] > 0)) prices[v.key] = String(Math.round(base * (factors[v.key] || 1)));
+    for (const s of slots) if (!(+prices[s.id] > 0)) prices[s.id] = String(Math.round(base * (factors[s.vehicle] || 1)));
     setAdd({ ...add, prices }); setMsg('');
   }
 
@@ -132,10 +149,10 @@ function Prices({ cfg, update, zones, zl }) {
     ev.preventDefault(); setMsg('');
     if (add.from === add.to) return setMsg('Choisissez deux lieux différents.');
     if (cfg.grid.some((g) => sameRoute(g, add.from, add.to))) return setMsg('Ce trajet existe déjà : modifiez ses prix dans la liste.');
-    const rows = vehicles.filter((v) => +add.prices[v.key] > 0)
-      .map((v) => ({ fromZone: add.from, toZone: add.to, vehicle: v.key, price: Math.round(+add.prices[v.key] * 100) / 100 }));
+    const rows = slots.filter((s) => +add.prices[s.id] > 0)
+      .map((s) => ({ fromZone: add.from, toZone: add.to, vehicle: s.vehicle, ...tierFields(s), price: Math.round(+add.prices[s.id] * 100) / 100 }));
     if (!rows.length) return setMsg('Indiquez le prix d’au moins un véhicule.');
-    const skipped = vehicles.filter((v) => !(+add.prices[v.key] > 0)).map((v) => v.label?.fr || v.key);
+    const skipped = slots.filter((s) => !(+add.prices[s.id] > 0)).map((s) => s.name);
     update({ ...cfg, grid: [...cfg.grid, ...rows] });
     setAdd({ from: '', to: '', prices: {} });
     setMsg(`Trajet ajouté : ${zl(add.from)} ⇄ ${zl(add.to)}${skipped.length ? ` (non proposé en ${skipped.join(', ')})` : ''}. Pensez à enregistrer.`);
@@ -143,7 +160,7 @@ function Prices({ cfg, update, zones, zl }) {
 
   return (
     <div className="stack">
-      <p className="help">Prix d’un <b>aller simple</b>, par véhicule, en euros. Un trajet est valable dans les deux sens. Le client voit uniquement les véhicules assez grands pour son groupe.</p>
+      <p className="help">Prix d’un <b>aller simple</b>, par véhicule (ou par tranche de passagers, ex. minibus 8–10, 11–13, 14–16), en euros. Un trajet est valable dans les deux sens. Le client voit uniquement les véhicules assez grands pour son groupe.</p>
 
       <form className="panel add-route" onSubmit={addRoute}>
         <h3>Ajouter un trajet</h3>
@@ -155,16 +172,16 @@ function Prices({ cfg, update, zones, zl }) {
         <fieldset className="add-route__prices">
           <legend>Prix par type de véhicule <small>(aller simple, en euros — laissez vide si le véhicule n’est pas proposé)</small></legend>
           <div className="vehicle-prices">
-            {vehicles.map((v) => (
-              <label key={v.key} className="vehicle-price">
-                <span className="vehicle-price__name">{v.label?.fr || v.key}<small>{cap(v)}</small></span>
-                <span className="money-inp"><input type="number" min="0" step="1" inputMode="decimal" placeholder="—" value={add.prices[v.key] ?? ''} onChange={(e) => setAddPrice(v.key, e.target.value)} aria-label={`Prix ${v.label?.fr || v.key}`} /><i>€</i></span>
+            {slots.map((s) => (
+              <label key={s.id} className="vehicle-price">
+                <span className="vehicle-price__name">{s.name}<small>{s.hint}</small></span>
+                <span className="money-inp"><input type="number" min="0" step="1" inputMode="decimal" placeholder="—" value={add.prices[s.id] ?? ''} onChange={(e) => setAddPrice(s.id, e.target.value)} aria-label={`Prix ${s.name}`} /><i>€</i></span>
               </label>
             ))}
           </div>
         </fieldset>
         <div className="row" style={{ justifyContent: 'space-between' }}>
-          {vehicles.length > 1 ? <button type="button" className="link-btn" onClick={suggest}>Proposer les prix manquants à partir du premier prix saisi</button> : <span />}
+          {slots.length > 1 ? <button type="button" className="link-btn" onClick={suggest}>Proposer les prix manquants à partir du premier prix saisi</button> : <span />}
           <button className="btn btn--green">Ajouter le trajet</button>
         </div>
         {msg && <p className="alert alert--info" role="status">{msg}</p>}
@@ -181,10 +198,10 @@ function Prices({ cfg, update, zones, zl }) {
           <article key={key(r.from, r.to)} className="route-card">
             <header><strong>{zl(r.from)} <span aria-hidden="true">⇄</span> {zl(r.to)}</strong>
               <button type="button" className="icon-btn" onClick={() => remove(r)} aria-label={`Supprimer le trajet ${r.name}`}>×</button></header>
-            {vehicles.map((v) => (
-              <label key={v.key} className="route-price">
-                <span>{v.label?.fr || v.key}<small>{cap(v)}</small></span>
-                <span className="money-inp"><input type="number" min="0" inputMode="decimal" value={price(r, v.key)} placeholder="—" onChange={(e) => setPrice(r, v.key, e.target.value)} aria-label={`${r.name} — ${v.label?.fr || v.key}`} /><i>€</i></span>
+            {slots.map((s) => (
+              <label key={s.id} className="route-price">
+                <span>{s.name}<small>{s.hint}</small></span>
+                <span className="money-inp"><input type="number" min="0" inputMode="decimal" value={price(r, s)} placeholder="—" onChange={(e) => setPrice(r, s, e.target.value)} aria-label={`${r.name} — ${s.name}`} /><i>€</i></span>
               </label>
             ))}
           </article>
@@ -210,6 +227,41 @@ function Vehicles({ cfg, update, set }) {
     if (!(await confirm({ title: `Supprimer le véhicule « ${v.label?.fr || v.key} » ?`, message: `Ses ${n} prix seront supprimés aussi (après « Enregistrer »).`, confirmLabel: 'Supprimer le véhicule' }))) return;
     update({ ...cfg, vehicles: vehicles.filter((_, k) => k !== i), grid: cfg.grid.filter((g) => g.vehicle !== v.key) });
   }
+  // Tranches de passagers : un prix par tranche sur chaque trajet (ex. minibus 8–10, 11–13, 14–16)
+  const span = (tiers) => (tiers.length ? { minPassengers: Math.min(...tiers.map((t) => +t.from)), maxPassengers: Math.max(...tiers.map((t) => +t.to)) } : {});
+  function saveTiers(i, tiers, grid = cfg.grid) {
+    update({ ...cfg, grid, vehicles: vehicles.map((x, k) => (k === i ? { ...x, tiers, ...span(tiers) } : x)) });
+  }
+  function addTier(i) {
+    const v = vehicles[i];
+    const tiers = v.tiers || [];
+    if (!tiers.length) {
+      // Première tranche : les prix actuels du véhicule deviennent ceux de cette tranche
+      const t = { from: v.minPassengers || 1, to: (v.minPassengers || 1) + 2 };
+      return saveTiers(i, [t], cfg.grid.map((g) => (g.vehicle === v.key && g.minPax == null ? { ...g, minPax: t.from, maxPax: t.to } : g)));
+    }
+    const last = Math.max(...tiers.map((t) => +t.to || 0));
+    saveTiers(i, [...tiers, { from: last + 1, to: last + 3 }]);
+  }
+  function editTier(i, k, field, value) {
+    const v = vehicles[i];
+    const old = v.tiers[k];
+    const next = { ...old, [field]: value };
+    // Les prix déjà saisis suivent la tranche modifiée
+    const grid = cfg.grid.map((g) => (g.vehicle === v.key && g.minPax === +old.from && g.maxPax === +old.to ? { ...g, minPax: +next.from, maxPax: +next.to } : g));
+    saveTiers(i, v.tiers.map((t, j) => (j === k ? next : t)), grid);
+  }
+  async function removeTier(i, k) {
+    const v = vehicles[i];
+    const t = v.tiers[k];
+    const tiers = v.tiers.filter((_, j) => j !== k);
+    const last = tiers.length === 0;
+    if (!last && !(await confirm({ title: `Supprimer la tranche ${t.from}–${t.to} personnes ?`, message: 'Ses prix seront supprimés sur tous les trajets (après « Enregistrer »).', confirmLabel: 'Supprimer la tranche' }))) return;
+    const isT = (g) => g.vehicle === v.key && g.minPax === +t.from && g.maxPax === +t.to;
+    // Dernière tranche supprimée : ses prix redeviennent le prix unique du véhicule
+    const grid = last ? cfg.grid.map((g) => (isT(g) ? { fromZone: g.fromZone, toZone: g.toZone, vehicle: g.vehicle, price: g.price } : g)) : cfg.grid.filter((g) => !isT(g));
+    saveTiers(i, tiers, grid);
+  }
   return (
     <div className="stack">
       <p className="help">Le nom est saisi en français et traduit automatiquement. <b>Passagers min et max</b> : le client ne voit que les véhicules adaptés à son groupe (ex. berline 1–4, minivan 5–6, van 7–8, minibus 9 et plus). L’ordre compte : le premier véhicule sert de référence pour calculer les prix des nouveaux trajets.</p>
@@ -225,13 +277,28 @@ function Vehicles({ cfg, update, set }) {
             <header><strong>{v.label?.fr || 'Véhicule'}</strong><button type="button" className="icon-btn" onClick={() => removeVehicle(i)} aria-label="Supprimer le véhicule">×</button></header>
             <label className="lbl">Nom (français)<input className="inp" value={v.label?.fr || ''} onChange={(e) => set(`vehicles.${i}.label.fr`, e.target.value)} onBlur={(e) => { if (/^vehicule-\d+$/.test(v.key) && e.target.value) set(`vehicles.${i}.key`, slugify(e.target.value)); }} /></label>
             <div className="grid-2 grid-2--tight">
-              <label className="lbl">Passagers min<input className="inp" type="number" min="1" value={v.minPassengers ?? 1} onChange={(e) => set(`vehicles.${i}.minPassengers`, +e.target.value)} /></label>
-              <label className="lbl">Passagers max<input className="inp" type="number" min="1" value={v.maxPassengers ?? ''} onChange={(e) => set(`vehicles.${i}.maxPassengers`, +e.target.value)} /></label>
+              <label className="lbl">Passagers min<input className="inp" type="number" min="1" value={v.minPassengers ?? 1} disabled={!!v.tiers?.length} title={v.tiers?.length ? 'Défini par les tranches' : undefined} onChange={(e) => set(`vehicles.${i}.minPassengers`, +e.target.value)} /></label>
+              <label className="lbl">Passagers max<input className="inp" type="number" min="1" value={v.maxPassengers ?? ''} disabled={!!v.tiers?.length} title={v.tiers?.length ? 'Défini par les tranches' : undefined} onChange={(e) => set(`vehicles.${i}.maxPassengers`, +e.target.value)} /></label>
               <label className="lbl">Valises max<input className="inp" type="number" min="0" value={v.maxLuggage ?? ''} onChange={(e) => set(`vehicles.${i}.maxLuggage`, +e.target.value)} /></label>
               <label className="lbl">Prix au km (€)<input className="inp" type="number" step="0.1" min="0" value={v.perKm ?? ''} onChange={(e) => set(`vehicles.${i}.perKm`, +e.target.value)} /></label>
               <label className="lbl">Course minimum (€)<input className="inp" type="number" min="0" value={v.minFare ?? ''} onChange={(e) => set(`vehicles.${i}.minFare`, +e.target.value)} /></label>
             </div>
             <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={!!v.onRequest} onChange={(e) => set(`vehicles.${i}.onRequest`, e.target.checked)} />Sur demande (le client demande un devis, aucun prix affiché)</label>
+            {!v.onRequest && (
+              <fieldset className="tiers">
+                <legend>Prix par tranche de passagers <small>(facultatif)</small></legend>
+                {(v.tiers || []).map((t, k) => (
+                  <div key={k} className="tiers__row">
+                    <label className="lbl">De<input className="inp" type="number" min="1" value={t.from ?? ''} onChange={(e) => editTier(i, k, 'from', +e.target.value)} aria-label={`Tranche ${k + 1} : de`} /></label>
+                    <label className="lbl">à<input className="inp" type="number" min="1" value={t.to ?? ''} onChange={(e) => editTier(i, k, 'to', +e.target.value)} aria-label={`Tranche ${k + 1} : à`} /></label>
+                    <span className="tiers__unit">pers.</span>
+                    <button type="button" className="icon-btn" onClick={() => removeTier(i, k)} aria-label={`Supprimer la tranche ${t.from}–${t.to}`}>×</button>
+                  </div>
+                ))}
+                {v.tiers?.length > 0 && <small className="muted">Un prix par tranche dans « Prix des trajets ». Le client voit le prix de la tranche de son groupe.</small>}
+                <button type="button" className="link-btn" onClick={() => addTier(i)}>+ Ajouter une tranche</button>
+              </fieldset>
+            )}
           </article>
         ))}
         <button type="button" className="route-card route-card--add" onClick={addVehicle}>+ Ajouter un véhicule</button>
