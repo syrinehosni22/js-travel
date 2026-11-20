@@ -60,6 +60,7 @@ r.get('/settings', async (req, res) => {
     cancellationHours: s.cancellationHours, fx: { EUR: 1, USD: s.fx?.USD, GBP: s.fx?.GBP, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
+    siteKeywords: String(s.siteKeywords?.[l] || '').split(',').map((k) => k.trim()).filter(Boolean),
     home: {
       hero: { title: pick(s.home?.hero?.title, l), text: pick(s.home?.hero?.text, l), slides: (s.home?.hero?.slides || []).filter(Boolean) },
       banner: { enabled: s.home?.banner?.enabled !== false, title: pick(s.home?.banner?.title, l), text: pick(s.home?.banner?.text, l), button: pick(s.home?.banner?.button, l), target: s.home?.banner?.target || 'transfers' },

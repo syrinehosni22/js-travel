@@ -59,7 +59,7 @@ export default function Transfers() {
 
   return (
     <>
-      <Seo title={landing?.seo?.metaTitle || landing?.title || t('transfer.title')} description={landing?.seo?.metaDescription || t('transfer.subtitle')}
+      <Seo title={landing?.seo?.metaTitle || landing?.title || t('transfer.title')} description={landing?.seo?.metaDescription || t('transfer.subtitle')} keywords={[landing?.seo?.focusKeyword, ...(landing?.seo?.secondaryKeywords || [])]}
         alternates={Object.fromEntries(LANGS.map((l) => [l, landing?.slug?.[l] ? path(l, 'transfers', landing.slug[l]) : path(l, 'transfers')]))} />
       <div className="page-head page-head--photo"><Media photo="mahdia" alt="" sizes="100vw" eager /><div className="container">
         <h1>{landing?.title || t('transfer.title')}</h1>
