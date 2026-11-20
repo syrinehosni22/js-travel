@@ -665,3 +665,10 @@ button, input, select { font: inherit; color: inherit; }
 .btn--gold-outline { border: 1px solid var(--gold); color: var(--gold); background: transparent; }
 .review .stars-row { gap: 3px; }
 .review .stars-meter > .stars-row { color: rgba(255,255,255,.22) !important; }
+
+/* Admin transferts : tranches de passagers d'un véhicule */
+.tiers { border: 1px solid var(--line, #e3e3e3); border-radius: 10px; padding: 8px 12px 10px; margin: 6px 0 0; display: grid; gap: 6px; }
+.tiers legend { font-weight: 600; font-size: .9rem; padding: 0 4px; }
+.tiers__row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: end; }
+.tiers__row .lbl { margin: 0; }
+.tiers__unit { padding-bottom: 10px; color: var(--muted, #666); }
