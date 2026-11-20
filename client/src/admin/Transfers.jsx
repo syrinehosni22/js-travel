@@ -134,6 +134,23 @@ function Prices({ cfg, update, zones, zl }) {
     }
   };
 
+  // Dupliquer un trajet : copie tous ses prix (véhicules et tranches) vers un autre trajet
+  const [dup, setDup] = useState(null);   // { route, from, to }
+  const [dupMsg, setDupMsg] = useState('');
+  function duplicate(ev) {
+    ev.preventDefault(); setDupMsg('');
+    const { route: r, from, to } = dup;
+    if (!from || !to || from === to) return setDupMsg('Choisissez deux lieux différents pour la copie.');
+    if (cfg.grid.some((g) => sameRoute(g, from, to))) return setDupMsg(`Le trajet ${zl(from)} ⇄ ${zl(to)} existe déjà : modifiez ses prix dans la liste.`);
+    const rows = cfg.grid.filter((g) => g.fromZone === r.from && g.toZone === r.to).map((g) => ({ ...g, fromZone: from, toZone: to }));
+    update({ ...cfg, grid: [...cfg.grid, ...rows] });
+    setDup(null); setQ('');
+    setDupMsg(`Trajet dupliqué : ${zl(from)} ⇄ ${zl(to)}, avec les prix de ${zl(r.from)} ⇄ ${zl(r.to)}. Ajustez les prix si besoin, puis enregistrez.`);
+  }
+  const zoneSelect = (label, value, onChange) => (
+    <label className="lbl">{label}<select className="inp" required value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choisir…</option>{zones.map((z) => <option key={z.key} value={z.key}>{z.label?.fr || z.key}</option>)}</select></label>
+  );
+
   const setAddPrice = (k, v) => setAdd({ ...add, prices: { ...add.prices, [k]: v } });
   // Propose les prix manquants à partir du premier prix saisi (coefficients tirés de la grille existante)
   function suggest() {
@@ -193,11 +210,31 @@ function Prices({ cfg, update, zones, zl }) {
         <strong>{routes.length} trajet{routes.length > 1 ? 's' : ''}</strong>
         <input className="inp" type="search" placeholder="Rechercher un trajet (ex. Sousse)" value={q} onChange={(e) => setQ(e.target.value)} style={{ flex: '1 1 240px', maxWidth: 360 }} aria-label="Rechercher un trajet" />
       </div>
+      {dupMsg && !dup && <p className="alert alert--info" role="status">{dupMsg}</p>}
+      {dup && (
+        <form id="dup-route" className="panel add-route" onSubmit={duplicate}>
+          <h3>Dupliquer le trajet {zl(dup.route.from)} ⇄ {zl(dup.route.to)}</h3>
+          <p className="help">Les prix de tous les véhicules (et de toutes les tranches) sont copiés vers le nouveau trajet.</p>
+          <div className="add-route__places">
+            {zoneSelect('Départ', dup.from, (v) => setDup({ ...dup, from: v }))}
+            <span className="add-route__arrow" aria-hidden="true">⇄</span>
+            {zoneSelect('Arrivée', dup.to, (v) => setDup({ ...dup, to: v }))}
+          </div>
+          <div className="row" style={{ justifyContent: 'flex-end' }}>
+            <button type="button" className="btn btn--outline" onClick={() => { setDup(null); setDupMsg(''); }}>Annuler</button>
+            <button className="btn btn--green">Créer la copie</button>
+          </div>
+          {dupMsg && <p className="alert alert--warn" role="status">{dupMsg}</p>}
+        </form>
+      )}
       <div className="route-grid">
         {routes.map((r) => (
           <article key={key(r.from, r.to)} className="route-card">
             <header><strong>{zl(r.from)} <span aria-hidden="true">⇄</span> {zl(r.to)}</strong>
-              <button type="button" className="icon-btn" onClick={() => remove(r)} aria-label={`Supprimer le trajet ${r.name}`}>×</button></header>
+              <span className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+                <button type="button" className="btn btn--outline btn-sm" onClick={() => { setDupMsg(''); setDup({ route: r, from: r.from, to: '' }); setTimeout(() => document.getElementById('dup-route')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 0); }} aria-label={`Dupliquer le trajet ${r.name}`}>Dupliquer</button>
+                <button type="button" className="icon-btn" onClick={() => remove(r)} aria-label={`Supprimer le trajet ${r.name}`}>×</button>
+              </span></header>
             {slots.map((s) => (
               <label key={s.id} className="route-price">
                 <span>{s.name}<small>{s.hint}</small></span>
@@ -220,6 +257,15 @@ function Vehicles({ cfg, update, set }) {
   function addStandard() { update({ ...cfg, vehicles: [...vehicles, ...missing.map((x) => ({ ...x, label: { ...x.label } }))] }); }
   function addVehicle() {
     update({ ...cfg, vehicles: [...vehicles, { key: `vehicule-${vehicles.length + 1}`, label: { fr: 'Nouveau véhicule' }, minPassengers: 1, maxPassengers: 4, maxLuggage: 4, perKm: 1, minFare: 30 }] });
+  }
+  // Dupliquer un véhicule : copie ses réglages, ses tranches et ses prix sur tous les trajets
+  function duplicateVehicle(i) {
+    const v = vehicles[i];
+    let k = `${v.key}-copie`, n = 2;
+    while (vehicles.some((x) => x.key === k)) k = `${v.key}-copie-${n++}`;
+    const copy = { ...structuredClone(v), key: k, label: { fr: `${v.label?.fr || v.key} (copie)` } };
+    const rows = cfg.grid.filter((g) => g.vehicle === v.key).map((g) => ({ ...g, vehicle: k }));
+    update({ ...cfg, vehicles: [...vehicles.slice(0, i + 1), copy, ...vehicles.slice(i + 1)], grid: [...cfg.grid, ...rows] });
   }
   async function removeVehicle(i) {
     const v = vehicles[i];
@@ -274,7 +320,11 @@ function Vehicles({ cfg, update, set }) {
       <div className="route-grid">
         {vehicles.map((v, i) => (
           <article key={i} className="route-card">
-            <header><strong>{v.label?.fr || 'Véhicule'}</strong><button type="button" className="icon-btn" onClick={() => removeVehicle(i)} aria-label="Supprimer le véhicule">×</button></header>
+            <header><strong>{v.label?.fr || 'Véhicule'}</strong>
+              <span className="row" style={{ gap: 6, flexWrap: 'nowrap' }}>
+                <button type="button" className="btn btn--outline btn-sm" onClick={() => duplicateVehicle(i)} aria-label={`Dupliquer le véhicule ${v.label?.fr || v.key}`}>Dupliquer</button>
+                <button type="button" className="icon-btn" onClick={() => removeVehicle(i)} aria-label="Supprimer le véhicule">×</button>
+              </span></header>
             <label className="lbl">Nom (français)<input className="inp" value={v.label?.fr || ''} onChange={(e) => set(`vehicles.${i}.label.fr`, e.target.value)} onBlur={(e) => { if (/^vehicule-\d+$/.test(v.key) && e.target.value) set(`vehicles.${i}.key`, slugify(e.target.value)); }} /></label>
             <div className="grid-2 grid-2--tight">
               <label className="lbl">Passagers min<input className="inp" type="number" min="1" value={v.minPassengers ?? 1} disabled={!!v.tiers?.length} title={v.tiers?.length ? 'Défini par les tranches' : undefined} onChange={(e) => set(`vehicles.${i}.minPassengers`, +e.target.value)} /></label>
