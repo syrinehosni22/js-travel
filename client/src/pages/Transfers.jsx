@@ -75,7 +75,7 @@ export default function Transfers() {
               <article key={q.vehicle} className="card vehicle">
                 <div style={{ flex: '1 1 260px' }}>
                   <h3>{q.label}</h3>
-                  <p className="muted">{t('transfer.range', { min: q.minPassengers || 1, max: q.maxPassengers, l: q.maxLuggage })}</p>
+                  <p className="muted">{q.group ? t('transfer.groupRange', { min: q.minPassengers, max: q.maxPassengers }) : t('transfer.range', { min: q.minPassengers || 1, max: q.maxPassengers, l: q.maxLuggage })}</p>
                   {q.night && <span className="tag">{t('transfer.night')}</span>}
                 </div>
                 {q.onRequest ? (

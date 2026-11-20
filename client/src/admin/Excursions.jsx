@@ -552,17 +552,17 @@ function CityTransfersPanel({ e, set }) {
   const departures = (e.departureCities || []).join(', ') || 'aucune (onglet Infos et photos)';
   return (
     <fieldset className="panel stack" style={{ gap: 10 }}>
-      <legend><strong>Transfert depuis une autre ville</strong></legend>
-      <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une ville de cette liste, le prix du transfert s’ajoute. Pour une ville absente de la liste, le client est prévenu que le prix sera confirmé par votre équipe.</p>
+      <legend><strong>Déplacement depuis une autre ville</strong></legend>
+      <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une ville de cette liste, le prix du déplacement s’ajoute. Pour une ville absente de la liste, le client est prévenu que le prix sera confirmé par votre équipe.</p>
       {list.length > 0 && (
         <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Ville</th><th>Prix du transfert (€)</th><th>Compté</th><th /></tr></thead>
+          <thead><tr><th>Ville</th><th>Prix du déplacement (€)</th><th>Compté</th><th /></tr></thead>
           <tbody>{list.map((c, i) => (
             <tr key={i}>
               <td><input aria-label="Ville" placeholder="Ex. : Nabeul" value={c.city || ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, city: ev.target.value } : x)))} /></td>
-              <td><input aria-label={`Prix du transfert depuis ${c.city || 'cette ville'}`} type="number" min="0" step="0.01" value={c.price ?? ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, price: ev.target.value === '' ? null : +ev.target.value } : x)))} /></td>
+              <td><input aria-label={`Prix du déplacement depuis ${c.city || 'cette ville'}`} type="number" min="0" step="0.01" value={c.price ?? ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, price: ev.target.value === '' ? null : +ev.target.value } : x)))} /></td>
               <td><select aria-label="Compté" value={c.per || 'booking'} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, per: ev.target.value } : x)))}>{PER_OPTS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
-              <td><RemoveButton what={`le transfert depuis ${c.city || 'cette ville'}`} onConfirm={() => save(list.filter((_, k) => k !== i))} /></td>
+              <td><RemoveButton what={`le déplacement depuis ${c.city || 'cette ville'}`} onConfirm={() => save(list.filter((_, k) => k !== i))} /></td>
             </tr>
           ))}</tbody>
         </table></div>

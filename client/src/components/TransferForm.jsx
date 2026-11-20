@@ -18,7 +18,7 @@ export function PlaceInput({ label, value, onChange }) {
   }, [q, lang]);
   useEffect(() => { if (value?.name && value.name !== q) setQ(value.name); }, [value]); // eslint-disable-line
   return (
-    <label className="field">{label}
+    <label className="field">{label} *
       <input list={id} value={q} required autoComplete="off" placeholder={t('search.place')}
         onChange={(e) => { setQ(e.target.value); const m = list.find((x) => x.name === e.target.value); onChange(m || null); }} />
       <datalist id={id}>{list.map((x) => <option key={x.id} value={x.name} />)}</datalist>
@@ -46,17 +46,17 @@ export default function TransferForm({ compact, initial, onSearch }) {
     <form className="search__form" onSubmit={submit}>
       <PlaceInput label={t('search.from')} value={f.from} onChange={set('from')} />
       <PlaceInput label={t('search.to')} value={f.to} onChange={set('to')} />
-      <label className="field">{t('search.datetime')}<input type="datetime-local" required value={f.datetime} onChange={set('datetime')} /></label>
-      <label className="field">{t('search.passengers')}<input type="number" min="1" max="16" value={f.adult} onChange={set('adult')} /></label>
+      <label className="field">{t('search.datetime')} *<input type="datetime-local" required value={f.datetime} onChange={set('datetime')} /></label>
+      <label className="field">{t('search.passengers')} *<input type="number" min="1" max="50" required value={f.adult} onChange={set('adult')} /></label>
       {!compact && <>
-        <label className="field">{t('calc.children')}<input type="number" min="0" max="16" value={f.child} onChange={set('child')} /></label>
-        <label className="field">{t('calc.infants')}<input type="number" min="0" max="16" value={f.infant} onChange={set('infant')} /></label>
-        <label className="field">{t('transfer.luggage')}<input type="number" min="0" max="20" value={f.luggage} onChange={set('luggage')} /></label>
+        <label className="field">{t('calc.children')}<input type="number" min="0" max="50" value={f.child} onChange={set('child')} /></label>
+        <label className="field">{t('calc.infants')}<input type="number" min="0" max="50" value={f.infant} onChange={set('infant')} /></label>
+        <label className="field">{t('transfer.luggage')}<input type="number" min="0" max="60" value={f.luggage} onChange={set('luggage')} /></label>
         {isAirport && <label className="field">{t('transfer.flight')}<input value={f.flightNumber} onChange={set('flightNumber')} placeholder="TU 123" aria-describedby="fh" /><small id="fh" style={{ fontWeight: 400 }}>{t('transfer.flightHint')}</small></label>}
         <label className="field">{t('transfer.childSeats')}<input type="number" min="0" max="4" value={f.childSeats} onChange={set('childSeats')} /></label>
         <label className="check" style={{ flex: '1 1 220px' }}><input type="checkbox" checked={f.nameSign} onChange={set('nameSign')} />{t('transfer.nameSign')}</label>
         <label className="check" style={{ flex: '1 1 160px' }}><input type="checkbox" checked={f.roundTrip} onChange={set('roundTrip')} />{t('transfer.roundTrip')}</label>
-        {f.roundTrip && <label className="field">{t('transfer.returnDate')}<input type="datetime-local" required value={f.returnDatetime} onChange={set('returnDatetime')} /></label>}
+        {f.roundTrip && <label className="field">{t('transfer.returnDate')} *<input type="datetime-local" required value={f.returnDatetime} onChange={set('returnDatetime')} /></label>}
       </>}
       <button className="btn btn--green" style={{ minHeight: 50, borderRadius: 12 }}>{t('search.seePrices')}</button>
     </form>

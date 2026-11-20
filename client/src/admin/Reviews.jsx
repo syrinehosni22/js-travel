@@ -11,7 +11,8 @@ const stars = (n) => '★'.repeat(n) + '☆'.repeat(5 - n);
 export default function ReviewsAdmin() {
   const { user } = useAdmin();
   const [tab, setTab] = useState('pending');
-  const { data, error, loading, reload } = useLoad(() => adminApi.get(`/reviews${tab ? `?status=${tab}` : ''}`), [tab]);
+  const [scope, setScope] = useState('');
+  const { data, error, loading, reload } = useLoad(() => adminApi.get(`/reviews?${new URLSearchParams({ ...(tab && { status: tab }), ...(scope && { scope }) })}`), [tab, scope]);
   const [toast, setToast] = useToast();
   const [busy, setBusy] = useState(null);
   const [replies, setReplies] = useState({});
@@ -36,12 +37,17 @@ export default function ReviewsAdmin() {
   return (
     <div className="stack">
       <Top title="Avis clients" />
-      <p className="muted" style={{ margin: 0 }}>Les avis laissés sur les fiches excursion arrivent ici. Ils ne sont visibles sur le site qu’après avoir été publiés. La note moyenne de l’excursion se met à jour automatiquement.</p>
+      <p className="muted" style={{ margin: 0 }}>Les avis laissés sur les fiches excursion et avec le bouton « Avis » du site arrivent ici. Ils ne sont visibles sur le site qu’après avoir été publiés. La note moyenne de l’excursion se met à jour automatiquement.</p>
       <div className="row">
         {TABS.map(([k, label]) => (
           <button key={k || 'all'} type="button" className={`chip${tab === k ? ' chip--on' : ''}`} aria-pressed={tab === k} onClick={() => setTab(k)}>
             {label}{k && counts[k] ? ` (${counts[k]})` : ''}
           </button>
+        ))}
+      </div>
+      <div className="row">
+        {[['', 'Tous les avis'], ['site', 'Avis sur le site'], ['excursion', 'Avis sur une excursion']].map(([k, label]) => (
+          <button key={k || 'all'} type="button" className="chip" aria-pressed={scope === k} onClick={() => setScope(k)}>{label}</button>
         ))}
       </div>
       <Err error={error || err} />
@@ -57,7 +63,7 @@ export default function ReviewsAdmin() {
                   <span style={{ color: 'var(--gold, #C9A227)', fontSize: 18, letterSpacing: 1 }} aria-label={`${r.rating} sur 5`}>{stars(r.rating)}</span>{' '}
                   <strong>{r.name}</strong>{r.email && <span className="muted"> · {r.email}</span>}
                 </div>
-                <span className="muted" style={{ fontSize: 13 }}>{r.excursion?.title?.fr || 'Excursion supprimée'} · {new Date(r.createdAt).toLocaleString('fr-FR')} · {LABEL[r.status]}{r.lang ? ` · ${r.lang.toUpperCase()}` : ''}</span>
+                <span className="muted" style={{ fontSize: 13 }}>{r.scope === 'site' ? 'Avis sur le site' : (r.excursion?.title?.fr || 'Excursion supprimée')} · {new Date(r.createdAt).toLocaleString('fr-FR')} · {LABEL[r.status]}{r.lang ? ` · ${r.lang.toUpperCase()}` : ''}</span>
               </div>
               {r.comment ? <p style={{ margin: 0, whiteSpace: 'pre-line' }}>{r.comment}</p> : <p className="muted" style={{ margin: 0 }}>(note sans commentaire)</p>}
               <label className="lbl">Réponse publique (facultative)

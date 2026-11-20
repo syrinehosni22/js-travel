@@ -30,6 +30,60 @@ export async function sendWhatsApp(to, text) {
   } catch (e) { console.error('[whatsapp] échec', e.message); }
 }
 
+/**
+ * Message WhatsApp à l'équipe (numéros réglés dans Admin → Paramètres, sinon TEAM_WHATSAPP du .env).
+ * Envoi par l'API WhatsApp Business si elle est configurée, sinon par CallMeBot si une clé est saisie.
+ * Renvoie [{ phone, ok, via, error }].
+ */
+export async function notifyAdminWhatsApp(text) {
+  const s = await getSettings();
+  const n = s.notifications || {};
+  const phones = String(n.adminWhatsapp || config.whatsapp.team || '').split(/[,;]+/).map((p) => p.replace(/[^\d]/g, '')).filter((p) => p.length >= 8);
+  const out = [];
+  for (const phone of phones) {
+    try {
+      if (config.whatsapp.token) {
+        const r = await fetch(`https://graph.facebook.com/v20.0/${config.whatsapp.phoneId}/messages`, {
+          method: 'POST', headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'text', text: { body: text } }),
+        });
+        out.push({ phone, ok: r.ok, via: 'whatsapp-business', error: r.ok ? undefined : `HTTP ${r.status}` });
+      } else if (n.callmebotKey) {
+        const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(n.callmebotKey)}`;
+        const r = await fetch(url);
+        const body = await r.text();
+        // CallMeBot répond « Message queued » en cas de succès
+        const ok = r.ok && (/queued|message sent/i.test(body) || !/error|invalid|wrong/i.test(body));
+        out.push({ phone, ok, via: 'callmebot', error: ok ? undefined : body.replace(/<[^>]+>/g, ' ').trim().slice(0, 160) });
+      } else {
+        console.log(`[whatsapp équipe → ${phone}] ${text}`);
+        out.push({ phone, ok: false, via: 'none', error: 'Aucun service d’envoi configuré' });
+      }
+    } catch (e) {
+      console.error('[whatsapp équipe] échec', e.message);
+      out.push({ phone, ok: false, via: config.whatsapp.token ? 'whatsapp-business' : 'callmebot', error: e.message });
+    }
+  }
+  return out;
+}
+
+/** Texte d'une réservation (alerte équipe et bouton « Envoyer via WhatsApp » de l'admin) */
+export function bookingText(b) {
+  const c = b.customer || {};
+  const p = (x) => [x?.adult && `${x.adult} ad.`, x?.child && `${x.child} enf.`, x?.infant && `${x.infant} bébé`].filter(Boolean).join(' + ');
+  const extras = (i) => (i.lines || []).filter((l) => ['option', 'guide', 'cityTransfer'].includes(l.key))
+    .map((l) => (l.key === 'guide' ? 'guide' : l.key === 'cityTransfer' ? `déplacement depuis ${l.label}` : l.label)).join(', ');
+  const items = (b.items || []).map((i) => `• ${i.title} — ${i.date || ''}${i.time ? ` ${i.time}` : ''} — ${p(i.participants)}${extras(i) ? ` — ${extras(i)}` : ''} — ${formatMoney(i.totalEur || 0, 'EUR', 'fr')}`).join('\n');
+  return [
+    `Nouvelle réservation ${b.ref}`,
+    `Client : ${c.name || ''} · ${c.phone || ''}${c.nationality ? ` · ${c.nationality}` : ''}`,
+    (c.hotel || c.city) && `Hôtel : ${[c.hotel, c.city].filter(Boolean).join(', ')}${c.room ? ` (ch. ${c.room})` : ''}`,
+    items,
+    `Total : ${formatMoney(b.totalEur || 0, 'EUR', 'fr')} TTC (à régler sur place)`,
+    c.notes && `Remarques : ${c.notes}`,
+  ].filter(Boolean).join('\n');
+}
+
 const manageUrl = (b) => `${config.siteUrl}/${b.lang}/booking/${b.ref}?token=${b.token}`;
 
 function layout(title, body) {
@@ -64,7 +118,7 @@ export async function notifyBookingCreated(b) {
   // Équipe : e-mail + WhatsApp (§7.3)
   const team = `Nouvelle réservation ${b.ref} · ${b.customer.name} · ${b.items.map((i) => `${i.title} (${i.date})`).join(', ')} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`;
   await sendMail({ to: config.teamEmail, subject: `Nouvelle réservation ${b.ref}`, html: layout('Nouvelle réservation', `<p>${team}</p>${summary({ ...b.toObject?.() ?? b, lang: 'fr' })}`) });
-  await sendWhatsApp(config.whatsapp.team, team);
+  await notifyAdminWhatsApp(`${bookingText(b)}\nAdmin : ${config.siteUrl}/admin/bookings?ref=${b.ref}`);
 }
 
 export async function notifyStatus(b, kind) {

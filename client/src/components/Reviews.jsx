@@ -22,7 +22,7 @@ export function Stars({ value = 0, size = 16, label }) {
 }
 
 /** Choix de la note : 5 étoiles cliquables, utilisables au clavier (boutons radio). */
-function StarPicker({ value, onChange }) {
+export function StarPicker({ value, onChange }) {
   const { t } = useTranslation();
   const [hover, setHover] = useState(0);
   const shown = hover || value;
@@ -39,7 +39,7 @@ function StarPicker({ value, onChange }) {
   );
 }
 
-const fmtDate = (d, lang) => { try { return new Date(d).toLocaleDateString(lang, { year: 'numeric', month: 'long' }); } catch { return ''; } };
+export const fmtDate = (d, lang) => { try { return new Date(d).toLocaleDateString(lang, { year: 'numeric', month: 'long' }); } catch { return ''; } };
 
 /** Rubrique « Avis clients » de la fiche : note moyenne, liste des avis publiés, formulaire. */
 export default function Reviews({ excursionId, rating, lang }) {
@@ -58,7 +58,7 @@ export default function Reviews({ excursionId, rating, lang }) {
 
   async function submit(ev) {
     ev.preventDefault();
-    if (!f.rating) return setSt({ ...st, needRating: true });
+    if (!f.rating || f.name.trim().length < 2) return setSt({ ...st, needRating: !f.rating, tried: true });
     setSt({ sending: true });
     try { await api.post(`/excursions/${excursionId}/reviews`, { ...f, lang }); setSt({ sent: true }); }
     catch (error) { setSt({ error }); }
@@ -86,7 +86,8 @@ export default function Reviews({ excursionId, rating, lang }) {
       {st.sent && <p className="alert alert--ok" role="status">{t('rev.sent')}</p>}
 
       {open && !st.sent && (
-        <form className="card reviews__form" onSubmit={submit} noValidate>
+        <form className={`card reviews__form${st.needRating || st.tried ? ' was-validated' : ''}`} onSubmit={submit} noValidate>
+          <p className="muted full form-legend">{t('common.requiredLegend')}</p>
           <div className="field full"><span>{t('rev.yourRating')} *</span><StarPicker value={f.rating} onChange={(n) => setF({ ...f, rating: n })} />
             {st.needRating && <small className="reviews__err" role="alert">{t('rev.ratingRequired')}</small>}
           </div>
@@ -96,7 +97,7 @@ export default function Reviews({ excursionId, rating, lang }) {
           <input className="hp" tabIndex={-1} aria-hidden="true" autoComplete="off" value={f.website} onChange={set('website')} name="website" />
           {st.error && <div className="full"><ErrorBox error={st.error} /></div>}
           <div className="row full">
-            <button className="btn btn--primary" disabled={st.sending || f.name.trim().length < 2}>{st.sending ? t('rev.sending') : t('rev.submit')}</button>
+            <button className="btn btn--primary" disabled={st.sending}>{st.sending ? t('rev.sending') : t('rev.submit')}</button>
             <button type="button" className="link-btn" onClick={() => setOpen(false)}>{t('rev.cancel')}</button>
           </div>
         </form>

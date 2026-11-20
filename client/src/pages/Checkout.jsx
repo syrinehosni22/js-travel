@@ -39,6 +39,7 @@ export default function Checkout() {
   const [f, setF] = useState({ name: '', email: '', phone: '', nationality: '', city: '', hotel: '', room: '', notes: '', accept: false, website: '' });
   const [guides, setGuides] = useState({});
   const [sending, setSending] = useState(false);
+  const [tried, setTried] = useState(false);
   const [error, setError] = useState(null);
   const countries = useMemo(() => countryList(lang), [lang]);
   const { quotes, loading } = useQuotes(cart, { guides, city: f.city, promoCode, partnerCode });
@@ -77,7 +78,8 @@ export default function Checkout() {
       <Seo title={t('checkout.title')} noindex />
       <div className="page-head"><div className="container"><h1>{t('checkout.title')}</h1></div></div>
       <div className="container cart">
-        <form className="card form" onSubmit={submit} noValidate={false}>
+        <form className={`card form${tried ? ' was-validated' : ''}`} onSubmit={submit} onInvalidCapture={() => setTried(true)} noValidate={false}>
+          <p className="muted full form-legend">{t('common.requiredLegend')}</p>
           <label className="field full">{t('checkout.name')} *<input required autoComplete="name" value={f.name} onChange={set('name')} /></label>
           <label className="field">{t('checkout.email')} *<input required type="email" autoComplete="email" value={f.email} onChange={set('email')} /></label>
           <label className="field">{t('checkout.phone')} *<input required type="tel" autoComplete="tel" placeholder="+44 …" value={f.phone} onChange={set('phone')} /></label>
@@ -95,13 +97,13 @@ export default function Checkout() {
             </label>
           )}
           {hasExcursion && <small className="muted full" style={{ marginTop: -6 }}>{t('checkout.cityHint')}</small>}
-          <label className="field">{t('checkout.hotel')}<input value={f.hotel} onChange={set('hotel')} /></label>
+          <label className="field">{t('checkout.hotel')}{hasExcursion && ' *'}<input required={hasExcursion} value={f.hotel} onChange={set('hotel')} autoComplete="organization" /></label>
           <label className="field">{t('checkout.room')}<input value={f.room} onChange={set('room')} /></label>
           <label className="field full">{t('checkout.notes')}<textarea value={f.notes} onChange={set('notes')} /></label>
           <input className="hp" tabIndex={-1} autoComplete="off" aria-hidden="true" value={f.website} onChange={set('website')} name="website" />
           {/* Cloudflare Turnstile : <div className="cf-turnstile" data-sitekey="..."></div> si TURNSTILE_SECRET est défini */}
           <label className="check full"><input type="checkbox" required checked={f.accept} onChange={set('accept')} />
-            <span>{t('checkout.accept')} (<Link to={path(lang, 'legal', 'cancellation')} target="_blank">{t('footer.cancellation')}</Link>)</span></label>
+            <span>{t('checkout.accept')} * (<Link to={path(lang, 'legal', 'cancellation')} target="_blank">{t('footer.cancellation')}</Link>)</span></label>
           <p className="alert alert--info full">{t('checkout.noPayment')}</p>
           {error && <div className="full">
             <ErrorBox error={error} />

@@ -6,6 +6,7 @@ import { LANGS, PATHS, path, langName } from '../i18n.js';
 import { Icon, Logo, BRAND } from './ui.jsx';
 import { PHOTOS } from '../images.js';
 import { waLink } from '../whatsapp.js';
+import { SiteReviewDialog, openSiteReview } from './SiteReviews.jsx';
 import { SOCIAL_NAMES } from '../social.js';
 
 function Header() {
@@ -162,6 +163,8 @@ export default function Layout({ children }) {
       <main id="main">{children}</main>
       <Footer />
       {wa && <a href={wa} className="fab fab--whatsapp" aria-label="WhatsApp" target="_blank" rel="noopener noreferrer"><Icon name="chat" color="#0B3D1F" size={26} /></a>}
+      <button type="button" className={`fab fab--review${wa ? '' : ' fab--review-alone'}`} onClick={openSiteReview} aria-label={t('rev.siteTitle')}><Icon name="star" size={18} /><span>{t('rev.fab')}</span></button>
+      <SiteReviewDialog />
       <button className={`fab fab--top${showTop ? ' is-visible' : ''}`} aria-label={t('footer.top')} onClick={() => window.scrollTo({ top: 0 })}><Icon name="up" /></button>
       <CookieBanner />
     </>
