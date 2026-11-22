@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { adminApi, adminUpload, assetUrl } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
+import CityTransfersTable from './CityTransfersTable.jsx';
 import { useLoad, Top, Err, useToast, setPath, getPath, LANGS, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { SOCIAL_NAMES } from '../social.js';
 
@@ -15,6 +16,9 @@ export default function SettingsAdmin() {
   const [code, setCode] = useState('');
   const [toast, say] = useToast();
   useEffect(() => { if (data) setS(data); }, [data]);
+  // Lien direct vers une section (ex. /admin/settings#deplacements)
+  const ready = !!s;
+  useEffect(() => { if (ready && window.location.hash) document.getElementById(window.location.hash.slice(1))?.scrollIntoView({ block: 'start' }); }, [ready]);
   if (error) return <Err error={error} />;
   if (!s) return <p>Chargement…</p>;
   const set = (p, v) => setS(setPath(s, p, v));
@@ -34,6 +38,12 @@ export default function SettingsAdmin() {
       <Err error={err} />
       <div className="stack">
         <SiteSeoPanel s={s} set={set} lang={lang} setLang={setLang} />
+
+        <section id="deplacements" className="panel stack">
+          <h2 style={{ fontSize: 18 }}>Déplacement depuis une autre ville (toutes les excursions)</h2>
+          <p className="muted" style={{ margin: 0 }}>Quand la ville de l’hôtel du client n’est pas une ville de départ de l’excursion, ce prix s’ajoute au total, pour <b>toutes les excursions</b>. Une excursion peut avoir un prix différent pour une ville (fiche excursion → Tarifs → Déplacement depuis une autre ville). Ville sans prix : le client est prévenu que le prix sera confirmé par votre équipe.</p>
+          <CityTransfersTable list={s.cityTransfers || []} onChange={(v) => set('cityTransfers', v)} />
+        </section>
 
         <WhatsAppAlertsPanel s={s} set={set} />
 

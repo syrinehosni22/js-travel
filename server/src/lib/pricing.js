@@ -130,13 +130,18 @@ const normCity = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f
  * null = pas de transfert (ville de départ de l'excursion ou zone de prise en charge) ;
  * { onRequest: true } = ville hors liste, prix confirmé par l'équipe ; sinon { city, price, per }.
  */
-export function cityTransferFor(excursion, city) {
+/**
+ * Déplacement quand l'hôtel est hors des villes de départ : prix propre à l'excursion,
+ * sinon prix commun à toutes les excursions (Paramètres), sinon « sur demande ».
+ */
+export function cityTransferFor(excursion, city, common = []) {
   const c = normCity(city);
   if (!c) return null;
   const pr = excursion?.pricing || {};
   const local = [...(excursion?.departureCities || []), ...(pr.zones || []).flatMap((z) => [z.key, z.label])].map(normCity);
   if (local.includes(c)) return null;
-  const row = (pr.cityTransfers || []).find((r) => r && normCity(r.city) === c);
+  const find = (list) => (list || []).find((r) => r && normCity(r.city) === c && +r.price > 0);
+  const row = find(pr.cityTransfers) || find(common);
   if (!row || !(+row.price > 0)) return { city: String(city).trim(), onRequest: true };
   return { city: row.city, price: +row.price, per: ['person', 'vehicle'].includes(row.per) ? row.per : 'booking' };
 }
@@ -266,7 +271,7 @@ export function computeExcursionPrice(excursion, booking, ctx = {}) {
     extrasTotal += amount;
     lines.push({ key: 'guide', per: guide.per, qty: q, unit: guide.price, amount });
   }
-  const ct = cityTransferFor(excursion, booking.city);
+  const ct = cityTransferFor(excursion, booking.city, ctx.cityTransfers);
   if (ct?.onRequest) result.cityTransferOnRequest = ct.city;
   else if (ct) {
     const q = qtyFor(ct.per), amount = round2(ct.price * q);

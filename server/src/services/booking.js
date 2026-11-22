@@ -80,7 +80,7 @@ export async function priceExcursionItem(item, { promoCode, partnerCode, currenc
   const s = await getSettings();
   const discount = await resolveDiscount({ promoCode, partnerCode, date: item.date, productId: exc._id });
   const rate = (await rateFor(currency)) || 1;
-  const price = computeExcursionPrice(exc, item, { calendar: s.calendar, discount, rate, currency, lang });
+  const price = computeExcursionPrice(exc, item, { calendar: s.calendar, cityTransfers: s.cityTransfers, discount, rate, currency, lang });
   return { exc, price, discount };
 }
 

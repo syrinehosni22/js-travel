@@ -193,3 +193,15 @@ test('minibus : un prix par tranche de passagers (8–10, 11–13, 14–16)', ()
   cfg.grid = cfg.grid.filter((g) => g.minPax !== 14);
   assert.equal(q(15).length, 0);
 });
+
+test('déplacement : prix commun à toutes les excursions, remplacé par le prix de l’excursion', () => {
+  const common = [{ city: 'Nabeul', price: 30, per: 'booking' }, { city: 'Mahdia', price: 10, per: 'person' }];
+  const exc = { departureCities: ['Sousse'], pricing: { cityTransfers: [{ city: 'nabeul', price: 45, per: 'booking' }] } };
+  assert.equal(cityTransferFor(exc, 'Sousse', common), null);
+  assert.equal(cityTransferFor(exc, 'Nabeul', common).price, 45);           // prix de l'excursion
+  assert.deepEqual(cityTransferFor(exc, ' mahdia ', common), { city: 'Mahdia', price: 10, per: 'person' });   // prix commun
+  assert.equal(cityTransferFor(exc, 'Tozeur', common).onRequest, true);
+  const base = { pricing: { mode: 'per_person', seasons: { mid: { adult: 50 } } }, departureCities: ['Sousse'] };
+  const r = computeExcursionPrice(base, { participants: { adult: 2 }, city: 'Mahdia' }, { cityTransfers: common });
+  assert.equal(r.lines.find((l) => l.key === 'cityTransfer').amount, 20);
+});
