@@ -6,6 +6,7 @@ import { adminApi, adminUpload, assetUrl } from '../api.js';
 import RouteMap, { roadPath, searchPlace } from '../components/RouteMap.jsx';
 import { parseVideo } from '../components/About.jsx';
 import { allVideos, isVideoFile } from '../lib/videos.js';
+import CityTransfersTable, { PER_OPTS } from './CityTransfersTable.jsx';
 import { useLoad, Top, Err, useToast, eur, LANGS, getPath, setPath, useConfirm, RemoveButton, TRANSLATION_WARNING } from './shared.jsx';
 import { useAdmin } from './AdminApp.jsx';
 
@@ -523,7 +524,6 @@ function CardPrice({ e, set }) {
   );
 }
 
-const PER_OPTS = [['booking', 'par groupe (réservation)'], ['person', 'par personne'], ['vehicle', 'par véhicule']];
 
 /** Option guide : case à cocher proposée au client sur le formulaire final */
 function GuideOptionPanel({ e, set }) {
@@ -545,29 +545,29 @@ function GuideOptionPanel({ e, set }) {
   );
 }
 
-/** Transfert ajouté quand l'hôtel du client est dans une ville qui n'est pas une ville de départ */
+/** Déplacement quand l'hôtel du client est dans une ville qui n'est pas une ville de départ */
 function CityTransfersPanel({ e, set }) {
   const list = e.pricing?.cityTransfers || [];
-  const save = (v) => set('pricing.cityTransfers', v);
+  const { data: settings } = useLoad(() => adminApi.get('/settings'));
+  const common = (settings?.cityTransfers || []).filter((c) => c.city && +c.price > 0);
   const departures = (e.departureCities || []).join(', ') || 'aucune (onglet Infos et photos)';
+  const perLbl = Object.fromEntries(PER_OPTS);
   return (
     <fieldset className="panel stack" style={{ gap: 10 }}>
       <legend><strong>Déplacement depuis une autre ville</strong></legend>
-      <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une ville de cette liste, le prix du déplacement s’ajoute. Pour une ville absente de la liste, le client est prévenu que le prix sera confirmé par votre équipe.</p>
-      {list.length > 0 && (
-        <div className="tbl-wrap"><table className="tbl">
-          <thead><tr><th>Ville</th><th>Prix du déplacement (€)</th><th>Compté</th><th /></tr></thead>
-          <tbody>{list.map((c, i) => (
-            <tr key={i}>
-              <td><input aria-label="Ville" placeholder="Ex. : Nabeul" value={c.city || ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, city: ev.target.value } : x)))} /></td>
-              <td><input aria-label={`Prix du déplacement depuis ${c.city || 'cette ville'}`} type="number" min="0" step="0.01" value={c.price ?? ''} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, price: ev.target.value === '' ? null : +ev.target.value } : x)))} /></td>
-              <td><select aria-label="Compté" value={c.per || 'booking'} onChange={(ev) => save(list.map((x, k) => (k === i ? { ...x, per: ev.target.value } : x)))}>{PER_OPTS.map(([k, v]) => <option key={k} value={k}>{v}</option>)}</select></td>
-              <td><RemoveButton what={`le déplacement depuis ${c.city || 'cette ville'}`} onConfirm={() => save(list.filter((_, k) => k !== i))} /></td>
-            </tr>
-          ))}</tbody>
-        </table></div>
-      )}
-      <div><button type="button" className="link-btn" onClick={() => save([...list, { city: '', price: null, per: 'booking' }])}>+ Ville</button></div>
+      <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une autre ville, le prix du déplacement s’ajoute. Pour une ville sans prix, le client est prévenu que le prix sera confirmé par votre équipe.</p>
+      <div className="stack" style={{ gap: 6 }}>
+        <strong>Prix communs à toutes les excursions</strong>
+        {common.length
+          ? <p style={{ margin: 0 }}>{common.map((c) => `${c.city} : ${c.price} € ${perLbl[c.per || 'booking']}`).join(' · ')}</p>
+          : <p className="muted" style={{ margin: 0 }}>Aucun prix commun pour l’instant.</p>}
+        <div><Link className="link-btn" to="/admin/settings#deplacements">Modifier les prix communs (Paramètres)</Link></div>
+      </div>
+      <div className="stack" style={{ gap: 6 }}>
+        <strong>Prix différents pour cette excursion <small className="muted">(facultatif)</small></strong>
+        <p className="muted" style={{ margin: 0 }}>Une ville ajoutée ici remplace le prix commun, pour cette excursion seulement.</p>
+        <CityTransfersTable list={list} onChange={(v) => set('pricing.cityTransfers', v)} addLabel="+ Prix différent pour une ville" />
+      </div>
     </fieldset>
   );
 }

@@ -71,6 +71,8 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   emailTemplates: Object,   // surcharges par clé et par langue
   seoHome: { type: SeoByLang(), default: () => ({}) },
   siteKeywords: L(),
+  /** Déplacement depuis une autre ville : prix communs à toutes les excursions (une excursion peut les remplacer) */
+  cityTransfers: [{ _id: false, city: String, price: Number, per: { type: String, enum: ['person', 'vehicle', 'booking'], default: 'booking' } }],
   /** Commission versée sur les réservations réglées (Rapports → Commission) */
   commission: { name: { type: String, default: 'Syrine' }, percent: { type: Number, default: 10 } },
   /** Alertes WhatsApp à l'équipe (nouvelle réservation) */

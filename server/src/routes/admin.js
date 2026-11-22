@@ -377,7 +377,7 @@ r.post('/pricing/simulate', allow('manager', 'editor'), async (req, res) => {
   const s = await getSettings();
   const { excursion, booking, discountPercent = 0 } = req.body;
   res.json({
-    price: computeExcursionPrice(excursion, booking, { calendar: s.calendar, discount: { rate: discountPercent / 100, source: 'simulation' } }),
+    price: computeExcursionPrice(excursion, booking, { calendar: s.calendar, cityTransfers: s.cityTransfers, discount: { rate: discountPercent / 100, source: 'simulation' } }),
     warnings: minimumWarnings(excursion),
     groupTable: groupTable(excursion, booking.season || 'mid'),
   });

@@ -185,13 +185,13 @@ const quoteSchema = z.object({
 /** Devis serveur (le même calcul que le navigateur, avec code promo et disponibilité) */
 r.post('/excursions/:id/quote', async (req, res) => {
   const body = quoteSchema.parse(req.body);
-  const { exc, price, discount } = await priceExcursionItem({ ...body, excursion: req.params.id }, { ...body, lang: lang(req) });
+  const [{ exc, price, discount }, s] = await Promise.all([priceExcursionItem({ ...body, excursion: req.params.id }, { ...body, lang: lang(req) }), getSettings()]);
   const availability = body.date ? await checkAvailability(exc, body.date) : null;
   // Options proposées au formulaire final : guide à cocher et villes avec transfert
   const extras = {
     guide: guideOptionOf(exc),
     departureCities: exc.departureCities || [],
-    transferCities: (exc.pricing?.cityTransfers || []).filter((c) => c.city && +c.price > 0).map((c) => c.city),
+    transferCities: [...new Set([...(exc.pricing?.cityTransfers || []), ...(s.cityTransfers || [])].filter((c) => c.city && +c.price > 0).map((c) => c.city.trim()))],
   };
   res.json({ price, discount: { rate: discount.rate, source: discount.source }, availability, extras });
 });
