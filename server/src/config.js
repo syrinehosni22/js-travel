@@ -18,7 +18,11 @@ export const config = {
     from: process.env.MAIL_FROM || 'JS Travel Tunisia <reservations@example.com>',
   },
   teamEmail: process.env.TEAM_EMAIL,
-  whatsapp: { token: process.env.WHATSAPP_TOKEN, phoneId: process.env.WHATSAPP_PHONE_ID, team: process.env.TEAM_WHATSAPP },
+  whatsapp: {
+    token: process.env.WHATSAPP_TOKEN, phoneId: process.env.WHATSAPP_PHONE_ID, team: process.env.TEAM_WHATSAPP,
+    // Modèle de message approuvé par Meta (obligatoire hors des 24 h qui suivent un message de l'équipe)
+    template: process.env.WHATSAPP_TEMPLATE, templateLang: process.env.WHATSAPP_TEMPLATE_LANG || 'fr',
+  },
   turnstileSecret: process.env.TURNSTILE_SECRET,
   deeplKey: process.env.DEEPL_API_KEY,
   fxMode: process.env.FX_MODE || 'auto',

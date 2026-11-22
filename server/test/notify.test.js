@@ -13,3 +13,13 @@ test('texte WhatsApp d’une réservation : client, hôtel, excursions, options,
     assert.ok(txt.includes(part), `${part}\n---\n${txt}`);
   }
 });
+
+test('alerte WhatsApp Cloud : message libre, ou modèle approuvé avec le texte sur une ligne', async () => {
+  const { whatsappPayload } = await import('../src/services/notify.js');
+  assert.deepEqual(whatsappPayload('21624500358', 'a\nb'), { messaging_product: 'whatsapp', to: '21624500358', type: 'text', text: { body: 'a\nb' } });
+  const p = whatsappPayload('21624500358', 'Nouvelle réservation JS-1\n\nAmel   Ben\nTotal : 190 €', { template: 'nouvelle_reservation', templateLang: 'fr' });
+  assert.equal(p.type, 'template');
+  assert.equal(p.template.name, 'nouvelle_reservation');
+  assert.deepEqual(p.template.language, { code: 'fr' });
+  assert.equal(p.template.components[0].parameters[0].text, 'Nouvelle réservation JS-1 · Amel Ben · Total : 190 €');
+});
