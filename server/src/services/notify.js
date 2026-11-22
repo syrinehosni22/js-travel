@@ -49,7 +49,7 @@ export async function notifyAdminWhatsApp(text) {
         });
         out.push({ phone, ok: r.ok, via: 'whatsapp-business', error: r.ok ? undefined : `HTTP ${r.status}` });
       } else if (n.callmebotKey) {
-        const url = `https://api.callmebot.com/whatsapp.php?phone=${phone}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(n.callmebotKey)}`;
+        const url = `https://api.callmebot.com/whatsapp.php?phone=%2B${phone}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(n.callmebotKey)}`;
         const r = await fetch(url);
         const body = await r.text();
         // CallMeBot répond « Message queued » en cas de succès
