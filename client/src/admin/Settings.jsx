@@ -153,6 +153,11 @@ function MessagingPanel({ email, s, set }) {
   return (
     <section className="panel stack">
       <h2 style={{ fontSize: 18 }}>E-mails et WhatsApp aux clients</h2>
+      <fieldset className="stack" style={{ gap: 6, border: 0, padding: 0, margin: 0 }}>
+        <legend style={{ fontWeight: 600, marginBottom: 6 }}>Être prévenu d’une nouvelle réservation par</legend>
+        <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={s.notifications?.teamByWhatsapp !== false} onChange={(e) => set('notifications.teamByWhatsapp', e.target.checked)} />WhatsApp (numéros de la section « Alertes WhatsApp »)</label>
+        <label className="check" style={{ minHeight: 0 }}><input type="checkbox" checked={s.notifications?.teamByEmail !== false} onChange={(e) => set('notifications.teamByEmail', e.target.checked)} />E-mail (adresses ci-dessous)</label>
+      </fieldset>
       <label className="lbl">E-mail(s) de l’équipe — reçoivent chaque nouvelle réservation, avis et message de contact (séparés par des virgules)
         <input className="inp" type="text" inputMode="email" placeholder="booking@jstraveltrip.com" value={s.notifications?.adminEmail || ''} onChange={(e) => set('notifications.adminEmail', e.target.value)} /></label>
       <p className="muted" style={{ margin: 0 }}>Le client reçoit aussi un e-mail de confirmation à l’adresse saisie dans sa réservation. Le serveur d’envoi se règle dans le fichier <code>server/.env</code> du serveur (voir <code>server/.env.example</code>), puis <code>pm2 restart js-travel-api --update-env</code>.</p>

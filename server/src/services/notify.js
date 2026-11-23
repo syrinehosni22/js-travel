@@ -158,12 +158,13 @@ export async function notifyBookingCreated(b) {
     ['Client', c.name], ['Téléphone', c.phone], ['E-mail', c.email], ['Nationalité', c.nationality],
     ['Hôtel', [c.hotel, c.city].filter(Boolean).join(', ') + (c.room ? ` (ch. ${c.room})` : '')], ['Remarques', c.notes],
   ].filter(([, v]) => v).map(([k, v]) => `<tr><td style="color:#666;padding:2px 12px 2px 0">${k}</td><td><b>${esc(v)}</b></td></tr>`).join('');
-  await safe(sendMail({
+  const n = s.notifications || {};
+  if (n.teamByEmail !== false) await safe(sendMail({
     to: await teamEmail(),
     subject: `Nouvelle réservation ${b.ref} · ${c.name || ''} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`,
     html: layout(`Nouvelle réservation ${b.ref}`, `<table>${info}</table>${summary({ ...(b.toObject?.() ?? b), lang: 'fr' })}<p><a href="${adminUrl}">Ouvrir la réservation dans l'admin</a></p>`),
   }));
-  await safe(notifyAdminWhatsApp(`${bookingText(b)}\nAdmin : ${adminUrl}`));
+  if (n.teamByWhatsapp !== false) await safe(notifyAdminWhatsApp(`${bookingText(b)}\nAdmin : ${adminUrl}`));
   // Client : e-mail de confirmation (avec voucher si confirmée) + WhatsApp
   await safe(sendMail({
     to: c.email,
