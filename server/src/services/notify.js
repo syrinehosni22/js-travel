@@ -6,28 +6,53 @@ import { voucherPdf } from './voucher.js';
 import { getSettings } from './settings.js';
 
 const transport = config.smtp.host
-  ? nodemailer.createTransport({ host: config.smtp.host, port: config.smtp.port, auth: { user: config.smtp.user, pass: config.smtp.pass } })
+  ? nodemailer.createTransport({
+    host: config.smtp.host, port: config.smtp.port,
+    secure: config.smtp.port === 465,   // 465 = SSL direct ; 587 = STARTTLS
+    auth: config.smtp.user ? { user: config.smtp.user, pass: config.smtp.pass } : undefined,
+  })
   : null;
 
-export async function sendMail({ to, subject, html, attachments }) {
-  if (!to) return;
-  if (!transport) { console.log(`[mail → ${to}] ${subject}`); return; }
-  try { await transport.sendMail({ from: config.smtp.from, to, subject, html, attachments }); }
-  catch (e) { console.error('[mail] échec', e.message); }
+/** Ce qui est configuré sur le serveur (sans aucun secret) — écran Paramètres de l'admin */
+export function notificationStatus() {
+  return {
+    smtp: !!transport, smtpHost: config.smtp.host || null, mailFrom: config.smtp.from, teamEmail: config.teamEmail || null,
+    whatsappCloud: !!(config.whatsapp.token && config.whatsapp.phoneId),
+    adminTemplate: config.whatsapp.template || null, clientTemplate: config.whatsapp.clientTemplate || null,
+  };
 }
 
-/** WhatsApp Cloud API (message texte). Sans jeton configuré, le message est journalisé. */
-export async function sendWhatsApp(to, text) {
-  if (!to) return;
+/** E-mail ; sans SMTP configuré, il est seulement affiché dans la console. Renvoie { ok, error }. */
+export async function sendMail({ to, subject, html, attachments }) {
+  if (!to) return { ok: false, error: 'Aucun destinataire' };
+  if (!transport) { console.log(`[mail → ${to}] ${subject}`); return { ok: false, error: 'SMTP non configuré (SMTP_HOST vide dans server/.env)' }; }
+  try { await transport.sendMail({ from: config.smtp.from, to, subject, html, attachments }); return { ok: true }; }
+  catch (e) { console.error('[mail] échec', e.message); return { ok: false, error: e.message }; }
+}
+
+/** Appel à l'API WhatsApp Cloud ; renvoie { ok, error } avec la raison donnée par Meta */
+async function postWhatsApp(body) {
+  const r = await fetch(`https://graph.facebook.com/v20.0/${config.whatsapp.phoneId}/messages`, {
+    method: 'POST', headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (r.ok) return { ok: true };
+  const err = await r.json().then((j) => j?.error?.error_data?.details || j?.error?.message, () => null);
+  return { ok: false, error: `HTTP ${r.status}${err ? ` : ${err}` : ''}` };
+}
+
+/**
+ * WhatsApp à un client ou un chauffeur. Avec WHATSAPP_CLIENT_TEMPLATE, le message part dans le modèle
+ * approuvé, dans la langue du client ; sinon en texte libre (accepté par Meta seulement dans les 24 h
+ * qui suivent un message de ce numéro). Sans jeton, le message est journalisé.
+ */
+export async function sendWhatsApp(to, text, { lang = 'fr' } = {}) {
+  if (!to) return { ok: false, error: 'Aucun numéro' };
   const phone = String(to).replace(/[^\d]/g, '');
-  if (!config.whatsapp.token) { console.log(`[whatsapp → ${phone}] ${text}`); return; }
+  if (!config.whatsapp.token) { console.log(`[whatsapp → ${phone}] ${text}`); return { ok: false, error: 'WhatsApp non configuré (WHATSAPP_TOKEN vide dans server/.env)' }; }
   try {
-    await fetch(`https://graph.facebook.com/v20.0/${config.whatsapp.phoneId}/messages`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'text', text: { body: text } }),
-    });
-  } catch (e) { console.error('[whatsapp] échec', e.message); }
+    return await postWhatsApp(whatsappPayload(phone, text, { template: config.whatsapp.clientTemplate, templateLang: lang }));
+  } catch (e) { console.error('[whatsapp] échec', e.message); return { ok: false, error: e.message }; }
 }
 
 /**
@@ -57,13 +82,8 @@ export async function notifyAdminWhatsApp(text) {
   for (const phone of phones) {
     try {
       if (config.whatsapp.token) {
-        const r = await fetch(`https://graph.facebook.com/v20.0/${config.whatsapp.phoneId}/messages`, {
-          method: 'POST', headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(whatsappPayload(phone, text, config.whatsapp)),
-        });
         // En cas de refus, Meta explique la raison (token expiré, modèle non approuvé, numéro non autorisé…)
-        const err = r.ok ? undefined : await r.json().then((j) => j?.error?.error_data?.details || j?.error?.message, () => null);
-        out.push({ phone, ok: r.ok, via: 'whatsapp-business', error: r.ok ? undefined : `HTTP ${r.status}${err ? ` : ${err}` : ''}` });
+        out.push({ phone, via: 'whatsapp-business', ...(await postWhatsApp(whatsappPayload(phone, text, config.whatsapp))) });
       } else if (n.callmebotKey) {
         const url = `https://api.callmebot.com/whatsapp.php?phone=%2B${phone}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(n.callmebotKey)}`;
         const r = await fetch(url);
@@ -130,7 +150,7 @@ export async function notifyBookingCreated(b) {
        <p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   });
-  await sendWhatsApp(b.customer.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}\n${manageUrl(b)}`);
+  await sendWhatsApp(b.customer.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}\n${manageUrl(b)}`, { lang: L });
   // Équipe : e-mail + WhatsApp (§7.3)
   const team = `Nouvelle réservation ${b.ref} · ${b.customer.name} · ${b.items.map((i) => `${i.title} (${i.date})`).join(', ')} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`;
   await sendMail({ to: config.teamEmail, subject: `Nouvelle réservation ${b.ref}`, html: layout('Nouvelle réservation', `<p>${team}</p>${summary({ ...b.toObject?.() ?? b, lang: 'fr' })}`) });
@@ -148,7 +168,7 @@ export async function notifyStatus(b, kind) {
     html: layout(titles[kind], `<p>${t(L, 'hello')} ${b.customer.name},</p><p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b)}<p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   });
-  await sendWhatsApp(b.customer.phone, `${titles[kind]} · ${b.ref}\n${manageUrl(b)}`);
+  await sendWhatsApp(b.customer.phone, `${titles[kind]} · ${b.ref}\n${manageUrl(b)}`, { lang: L });
 }
 
 export async function requestReview(b) {
@@ -156,11 +176,11 @@ export async function requestReview(b) {
   const s = await getSettings();
   const links = [s.social?.tripadvisor && `<a href="${s.social.tripadvisor}">Tripadvisor</a>`, s.social?.googleReviews && `<a href="${s.social.googleReviews}">Google</a>`].filter(Boolean).join(' · ');
   await sendMail({ to: b.customer.email, subject: t(L, 'review'), html: layout(t(L, 'review'), `<p>${t(L, 'hello')} ${b.customer.name},</p><p>${t(L, 'reviewAsk')}</p><p>${links}</p><p>${t(L, 'thanks')}</p>`) });
-  await sendWhatsApp(b.customer.phone, `${t(L, 'reviewAsk')} ${s.social?.tripadvisor || ''}`);
+  await sendWhatsApp(b.customer.phone, `${t(L, 'reviewAsk')} ${s.social?.googleReviews || s.social?.tripadvisor || ''}`, { lang: L });
 }
 
 /** Feuille de route quotidienne du chauffeur (§7.3) */
 export async function sendDriverRoadmap(driver, items) {
   const lines = items.map((i) => `${i.time || ''} · ${i.title} · ${i.customer} · ${i.hotel || i.transfer?.from || ''} · ${i.phone || ''}`).join('\n');
-  await sendWhatsApp(driver.phone, `Feuille de route\n${lines || 'Aucune prestation'}`);
+  await sendWhatsApp(driver.phone, `Feuille de route\n${lines || 'Aucune prestation'}`, { lang: 'fr' });
 }
