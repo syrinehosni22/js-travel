@@ -23,3 +23,11 @@ test('alerte WhatsApp Cloud : message libre, ou modèle approuvé avec le texte 
   assert.deepEqual(p.template.language, { code: 'fr' });
   assert.equal(p.template.components[0].parameters[0].text, 'Nouvelle réservation JS-1 · Amel Ben · Total : 190 €');
 });
+
+test('numéros WhatsApp : format international, numéros tunisiens sans indicatif', async () => {
+  const { intlPhone } = await import('../src/services/notify.js');
+  for (const x of ['+216 24 500 358', '0021624500358', '24 500 358', '216-24-500-358']) assert.equal(intlPhone(x), '21624500358', x);
+  assert.equal(intlPhone('+33 6 12 34 56 78'), '33612345678');
+  assert.equal(intlPhone('123'), null);
+  assert.equal(intlPhone(''), null);
+});
