@@ -78,6 +78,7 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   /** Alertes WhatsApp à l'équipe (nouvelle réservation) */
   notifications: {
     adminWhatsapp: String,      // un ou plusieurs numéros, séparés par des virgules (format international)
+    adminEmail: String,         // e-mail(s) de l'équipe pour chaque réservation, séparés par des virgules (sinon TEAM_EMAIL)
     callmebotKey: String,       // clé CallMeBot, si l'API WhatsApp Business n'est pas configurée
   },        // mots-clés de tout le site, par langue (séparés par des virgules)
   /** Contenu modifiable de la page d'accueil (vide = textes et photos par défaut du site) */

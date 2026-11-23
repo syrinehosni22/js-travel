@@ -8,7 +8,7 @@ import { publicReview, siteRating } from '../services/reviews.js';
 import { byDisplayOrder } from '../lib/order.js';
 import { getSettings, rateFor } from '../services/settings.js';
 import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, monthAvailability, canCustomerCancel, resolveDiscount, HttpError } from '../services/booking.js';
-import { notifyBookingCreated, notifyStatus, sendMail } from '../services/notify.js';
+import { notifyBookingCreated, notifyStatus, sendMail, teamEmail } from '../services/notify.js';
 import { voucherPdf } from '../services/voucher.js';
 import { antiSpam } from '../middleware.js';
 import { LANGS, config } from '../config.js';
@@ -149,8 +149,8 @@ r.post('/reviews', reviewLimiter, async (req, res) => {
   if (req.body?.website) throw new HttpError(400, 'SPAM');
   const d = reviewInput.parse(req.body);
   const review = await Review.create({ ...d, scope: 'site', name: cleanText(d.name), comment: cleanText(d.comment), email: d.email || undefined, lang: LANGS.includes(d.lang) ? d.lang : undefined });
-  sendMail({ to: config.teamEmail, subject: `Nouvel avis sur le site ${'★'.repeat(d.rating)}`,
-    html: `<p><b>${escHtml(review.name)}</b> — ${d.rating}/5</p><p>${escHtml(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis clients ».</p>` });
+  teamEmail().then((to) => sendMail({ to, subject: `Nouvel avis sur le site ${'★'.repeat(d.rating)}`,
+    html: `<p><b>${escHtml(review.name)}</b> — ${d.rating}/5</p><p>${escHtml(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis clients ».</p>` }));
   res.status(201).json({ ok: true, pending: true });
 });
 
@@ -162,8 +162,8 @@ r.post('/excursions/:id/reviews', reviewLimiter, async (req, res) => {
   if (!e) throw new HttpError(404, 'NOT_FOUND');
   const review = await Review.create({ ...d, name: cleanText(d.name), comment: cleanText(d.comment), email: d.email || undefined, lang: LANGS.includes(d.lang) ? d.lang : undefined, excursion: id });
   const esc = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
-  sendMail({ to: config.teamEmail, subject: `Nouvel avis ${'★'.repeat(d.rating)} : ${e.title?.fr || ''}`,
-    html: `<p><b>${esc(review.name)}</b> — ${d.rating}/5</p><p>${esc(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis ».</p>` });
+  teamEmail().then((to) => sendMail({ to, subject: `Nouvel avis ${'★'.repeat(d.rating)} : ${e.title?.fr || ''}`,
+    html: `<p><b>${esc(review.name)}</b> — ${d.rating}/5</p><p>${esc(review.comment)}</p><p>À valider dans l’admin, rubrique « Avis ».</p>` }));
   res.status(201).json({ ok: true, pending: true });
 });
 
@@ -339,7 +339,7 @@ r.get('/bookings/:ref/calendar.ics', async (req, res) => {
 r.post('/contact', formLimiter, antiSpam, async (req, res) => {
   const m = z.object({ name: z.string().min(2), email: z.string().email(), phone: z.string().optional(), subject: z.string().min(2), message: z.string().min(5).max(5000), consent: z.literal(true), lang: z.string().optional() }).parse(req.body);
   await Message.create(m);
-  sendMail({ to: config.teamEmail, subject: `Contact : ${m.subject}`, html: `<p>${m.name} &lt;${m.email}&gt; ${m.phone || ''}</p><p>${m.message.replace(/</g, '&lt;')}</p>` });
+  teamEmail().then((to) => sendMail({ to, subject: `Contact : ${m.subject}`, html: `<p>${m.name} &lt;${m.email}&gt; ${m.phone || ''}</p><p>${m.message.replace(/</g, '&lt;')}</p>` }));
   res.status(201).json({ ok: true });
 });
 
