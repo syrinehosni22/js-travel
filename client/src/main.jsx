@@ -6,6 +6,9 @@ import './i18n.js';
 import './styles.css';
 import App from './App.jsx';
 import ErrorBoundary from './components/ErrorBoundary.jsx';
+import { installTapDebug } from './lib/tapDebug.js';
+
+installTapDebug();
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
