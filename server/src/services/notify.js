@@ -31,6 +31,20 @@ export async function sendWhatsApp(to, text) {
 }
 
 /**
+ * Corps de l'appel à l'API WhatsApp Cloud. Avec un modèle approuvé (ex. « nouvelle_reservation »),
+ * le texte devient la variable {{1}} : Meta refuse les retours à la ligne dans une variable,
+ * ils sont remplacés par « · ».
+ */
+export function whatsappPayload(phone, text, { template, templateLang = 'fr' } = {}) {
+  if (!template) return { messaging_product: 'whatsapp', to: phone, type: 'text', text: { body: text } };
+  const flat = String(text).split(/\n+/).map((l) => l.trim()).filter(Boolean).join(' · ').replace(/\s{2,}/g, ' ').slice(0, 1000);
+  return {
+    messaging_product: 'whatsapp', to: phone, type: 'template',
+    template: { name: template, language: { code: templateLang }, components: [{ type: 'body', parameters: [{ type: 'text', text: flat }] }] },
+  };
+}
+
+/**
  * Message WhatsApp à l'équipe (numéros réglés dans Admin → Paramètres, sinon TEAM_WHATSAPP du .env).
  * Envoi par l'API WhatsApp Business si elle est configurée, sinon par CallMeBot si une clé est saisie.
  * Renvoie [{ phone, ok, via, error }].
@@ -45,9 +59,11 @@ export async function notifyAdminWhatsApp(text) {
       if (config.whatsapp.token) {
         const r = await fetch(`https://graph.facebook.com/v20.0/${config.whatsapp.phoneId}/messages`, {
           method: 'POST', headers: { Authorization: `Bearer ${config.whatsapp.token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ messaging_product: 'whatsapp', to: phone, type: 'text', text: { body: text } }),
+          body: JSON.stringify(whatsappPayload(phone, text, config.whatsapp)),
         });
-        out.push({ phone, ok: r.ok, via: 'whatsapp-business', error: r.ok ? undefined : `HTTP ${r.status}` });
+        // En cas de refus, Meta explique la raison (token expiré, modèle non approuvé, numéro non autorisé…)
+        const err = r.ok ? undefined : await r.json().then((j) => j?.error?.error_data?.details || j?.error?.message, () => null);
+        out.push({ phone, ok: r.ok, via: 'whatsapp-business', error: r.ok ? undefined : `HTTP ${r.status}${err ? ` : ${err}` : ''}` });
       } else if (n.callmebotKey) {
         const url = `https://api.callmebot.com/whatsapp.php?phone=%2B${phone}&text=${encodeURIComponent(text)}&apikey=${encodeURIComponent(n.callmebotKey)}`;
         const r = await fetch(url);
