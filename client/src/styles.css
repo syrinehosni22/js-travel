@@ -92,7 +92,7 @@ button, input, select { font: inherit; color: inherit; }
 .hero__dots { display: flex; gap: 8px; margin-top: 28px; }
 .hero__dot { width: 12px; height: 6px; border-radius: 3px; border: 0; padding: 0; background: #6B7899; cursor: pointer; transition: width .3s; }
 .hero__dot.is-active { width: 32px; background: var(--saffron); }
-.hero__dot::before { content: ""; display: block; margin: -19px -16px; height: 44px; } /* zone tactile 44px */
+.hero__dot::before { content: ""; display: block; margin: -19px -4px; height: 44px; } /* zone tactile 44px, sans chevaucher le point voisin */
 
 .eyebrow { font-size: 13px; font-weight: 500; letter-spacing: .28em; text-transform: uppercase; color: var(--eyebrow); }
 .hero .eyebrow { color: var(--saffron-light); }
@@ -672,3 +672,13 @@ button, input, select { font: inherit; color: inherit; }
 .tiers__row { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: 8px; align-items: end; }
 .tiers__row .lbl { margin: 0; }
 .tiers__unit { padding-bottom: 10px; color: var(--muted, #666); }
+
+/* Mobile : boutons flottants plus discrets, pour ne pas recouvrir les boutons de la page */
+@media (max-width: 640px) {
+  .fab--whatsapp { width: 50px; height: 50px; right: 14px; }
+  .fab--review { width: 44px; height: 44px; padding: 0; justify-content: center; border-radius: 50%; right: 14px; bottom: 156px; }
+  .fab--review span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  .fab--review-alone { right: 14px; bottom: 102px; }
+  .fab--top { right: 17px; bottom: 210px; }
+  body.is-typing .fab { opacity: 0; pointer-events: none; }
+}
