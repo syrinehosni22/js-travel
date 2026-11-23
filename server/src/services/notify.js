@@ -55,11 +55,22 @@ async function postWhatsApp(body) {
  */
 export async function sendWhatsApp(to, text, { lang = 'fr' } = {}) {
   if (!to) return { ok: false, error: 'Aucun numéro' };
-  const phone = String(to).replace(/[^\d]/g, '');
+  const phone = intlPhone(to);
+  if (!phone) return { ok: false, error: `Numéro invalide : ${to}` };
   if (!config.whatsapp.token) { console.log(`[whatsapp → ${phone}] ${text}`); return { ok: false, error: 'WhatsApp non configuré (WHATSAPP_TOKEN vide dans server/.env)' }; }
   try {
     return await postWhatsApp(whatsappPayload(phone, text, { template: config.whatsapp.clientTemplate, templateLang: lang }));
   } catch (e) { console.error('[whatsapp] échec', e.message); return { ok: false, error: e.message }; }
+}
+
+/**
+ * Numéro au format international sans « + » : « +216 24 500 358 », « 0021624500358 » et
+ * « 24 500 358 » (numéro tunisien à 8 chiffres) donnent tous 21624500358.
+ */
+export function intlPhone(raw) {
+  let d = String(raw || '').replace(/[^\d]/g, '').replace(/^00/, '');
+  if (d.length === 8) d = `216${d}`;
+  return d.length >= 10 ? d : null;
 }
 
 /**
@@ -84,7 +95,8 @@ export function whatsappPayload(phone, text, { template, templateLang = 'fr' } =
 export async function notifyAdminWhatsApp(text) {
   const s = await getSettings();
   const n = s.notifications || {};
-  const phones = String(n.adminWhatsapp || config.whatsapp.team || '').split(/[,;]+/).map((p) => p.replace(/[^\d]/g, '')).filter((p) => p.length >= 8);
+  // Numéros : Alertes WhatsApp (Paramètres), sinon TEAM_WHATSAPP du serveur, sinon le WhatsApp de contact du site
+  const phones = [...new Set(String(n.adminWhatsapp || config.whatsapp.team || s.contact?.whatsapp || '').split(/[,;]+/).map(intlPhone).filter(Boolean))];
   const out = [];
   for (const phone of phones) {
     try {

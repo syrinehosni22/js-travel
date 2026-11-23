@@ -195,7 +195,7 @@ function WhatsAppAlertsPanel({ s, set }) {
   return (
     <section className="panel stack">
       <h2 style={{ fontSize: 18 }}>Alertes WhatsApp (nouvelles réservations)</h2>
-      <p className="muted" style={{ margin: 0 }}>À chaque nouvelle réservation, un message WhatsApp avec le détail (client, hôtel, excursions, total) est envoyé à ces numéros.</p>
+      <p className="muted" style={{ margin: 0 }}>À chaque nouvelle réservation, un message WhatsApp avec le détail (client, hôtel, excursions, total) est envoyé à ces numéros. Laissé vide : le message part au numéro WhatsApp de contact du site.</p>
       <div className="grid-2">
         <label className="lbl">Numéro(s) WhatsApp de l’admin — format international, séparés par des virgules
           <input className="inp" placeholder="+216 20 000 000" value={n.adminWhatsapp || ''} onChange={(e) => set('notifications.adminWhatsapp', e.target.value)} /></label>
@@ -217,7 +217,7 @@ function WhatsAppAlertsPanel({ s, set }) {
       </div>
       {test?.error && <Err error={test.error} />}
       {test?.results && (test.results.length === 0
-        ? <p className="alert alert--warn" style={{ margin: 0 }}>Aucun numéro enregistré.</p>
+        ? <p className="alert alert--warn" style={{ margin: 0 }}>Aucun numéro : remplissez ce champ (ou le WhatsApp de contact du site), puis enregistrez.</p>
         : test.results.map((r) => <p key={r.phone} className={`alert ${r.ok ? 'alert--ok' : 'alert--warn'}`} style={{ margin: 0 }}>+{r.phone} : {r.ok ? 'message envoyé' : `échec — ${r.error || 'erreur inconnue'}`}</p>))}
     </section>
   );
