@@ -16,10 +16,17 @@ const transport = config.smtp.host
 /** Ce qui est configuré sur le serveur (sans aucun secret) — écran Paramètres de l'admin */
 export function notificationStatus() {
   return {
-    smtp: !!transport, smtpHost: config.smtp.host || null, mailFrom: config.smtp.from, teamEmail: config.teamEmail || null,
+    smtp: !!transport, smtpHost: config.smtp.host || null, mailFrom: config.smtp.from, teamEmail: config.teamEmail || null,   // complété par la route avec l'adresse des Paramètres
     whatsappCloud: !!(config.whatsapp.token && config.whatsapp.phoneId),
     adminTemplate: config.whatsapp.template || null, clientTemplate: config.whatsapp.clientTemplate || null,
   };
+}
+
+/** E-mail(s) de l'équipe : Admin → Paramètres, sinon TEAM_EMAIL du serveur */
+export async function teamEmail() {
+  const s = await getSettings();
+  const list = String(s.notifications?.adminEmail || config.teamEmail || '').split(/[,;\s]+/).map((x) => x.trim()).filter((x) => /.+@.+\..+/.test(x));
+  return list.join(', ') || null;
 }
 
 /** E-mail ; sans SMTP configuré, il est seulement affiché dans la console. Renvoie { ok, error }. */
@@ -140,21 +147,34 @@ export async function notifyBookingCreated(b) {
   const L = b.lang;
   const s = await getSettings();
   const confirmed = b.status === 'confirmed';
-  const pdf = confirmed ? await voucherPdf(b, { contact: s.contact }) : null;
-  await sendMail({
-    to: b.customer.email,
+  const pdf = confirmed ? await voucherPdf(b, { contact: s.contact }).catch(() => null) : null;
+  // Chaque envoi est indépendant : un échec (client sans e-mail, WhatsApp non configuré…) n'empêche pas les autres
+  const safe = (p) => p.catch((e) => console.error('[notification]', e.message));
+  // Équipe d'abord : e-mail avec tout le détail + lien vers l'admin (§7.3)
+  const adminUrl = `${config.siteUrl}/admin/bookings?ref=${b.ref}`;
+  const c = b.customer || {};
+  const esc = (x) => String(x ?? '').replace(/[<>&]/g, (ch) => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;' })[ch]);
+  const info = [
+    ['Client', c.name], ['Téléphone', c.phone], ['E-mail', c.email], ['Nationalité', c.nationality],
+    ['Hôtel', [c.hotel, c.city].filter(Boolean).join(', ') + (c.room ? ` (ch. ${c.room})` : '')], ['Remarques', c.notes],
+  ].filter(([, v]) => v).map(([k, v]) => `<tr><td style="color:#666;padding:2px 12px 2px 0">${k}</td><td><b>${esc(v)}</b></td></tr>`).join('');
+  await safe(sendMail({
+    to: await teamEmail(),
+    subject: `Nouvelle réservation ${b.ref} · ${c.name || ''} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`,
+    html: layout(`Nouvelle réservation ${b.ref}`, `<table>${info}</table>${summary({ ...(b.toObject?.() ?? b), lang: 'fr' })}<p><a href="${adminUrl}">Ouvrir la réservation dans l'admin</a></p>`),
+  }));
+  await safe(notifyAdminWhatsApp(`${bookingText(b)}\nAdmin : ${adminUrl}`));
+  // Client : e-mail de confirmation (avec voucher si confirmée) + WhatsApp
+  await safe(sendMail({
+    to: c.email,
     subject: `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}`,
     html: layout(confirmed ? t(L, 'confirmed') : t(L, 'received'),
-      `<p>${t(L, 'hello')} ${b.customer.name},</p>${confirmed ? '' : `<p>${t(L, 'pending')}</p>`}
+      `<p>${t(L, 'hello')} ${c.name},</p>${confirmed ? '' : `<p>${t(L, 'pending')}</p>`}
        <p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b)}<p>${t(L, 'payOnSite')}</p>
        <p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
-  });
-  await sendWhatsApp(b.customer.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}\n${manageUrl(b)}`, { lang: L });
-  // Équipe : e-mail + WhatsApp (§7.3)
-  const team = `Nouvelle réservation ${b.ref} · ${b.customer.name} · ${b.items.map((i) => `${i.title} (${i.date})`).join(', ')} · ${formatMoney(b.totalEur, 'EUR', 'fr')}`;
-  await sendMail({ to: config.teamEmail, subject: `Nouvelle réservation ${b.ref}`, html: layout('Nouvelle réservation', `<p>${team}</p>${summary({ ...b.toObject?.() ?? b, lang: 'fr' })}`) });
-  await notifyAdminWhatsApp(`${bookingText(b)}\nAdmin : ${config.siteUrl}/admin/bookings?ref=${b.ref}`);
+  }));
+  await safe(sendWhatsApp(c.phone, `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}\n${t(L, 'total')} : ${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}\n${manageUrl(b)}`, { lang: L }));
 }
 
 export async function notifyStatus(b, kind) {

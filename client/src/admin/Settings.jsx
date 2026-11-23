@@ -45,7 +45,7 @@ export default function SettingsAdmin() {
           <CityTransfersTable list={s.cityTransfers || []} onChange={(v) => set('cityTransfers', v)} />
         </section>
 
-        <MessagingPanel email={user?.email} />
+        <MessagingPanel email={user?.email} s={s} set={set} />
 
         <WhatsAppAlertsPanel s={s} set={set} />
 
@@ -138,7 +138,7 @@ export default function SettingsAdmin() {
 /** Rubrique « Notre entreprise » de l'accueil : texte, photo, vidéo et chiffres clés */
 /** Alerte WhatsApp envoyée à l'équipe à chaque nouvelle réservation */
 /** E-mails et WhatsApp aux clients : état de la configuration du serveur + tests */
-function MessagingPanel({ email }) {
+function MessagingPanel({ email, s, set }) {
   const { data: st } = useLoad(() => adminApi.get('/notifications/status'));
   const [to, setTo] = useState(email || '');
   const [phone, setPhone] = useState('');
@@ -153,11 +153,13 @@ function MessagingPanel({ email }) {
   return (
     <section className="panel stack">
       <h2 style={{ fontSize: 18 }}>E-mails et WhatsApp aux clients</h2>
-      <p className="muted" style={{ margin: 0 }}>Ces réglages se font dans le fichier <code>server/.env</code> du serveur (voir <code>server/.env.example</code>), puis <code>pm2 restart js-travel-api --update-env</code>.</p>
+      <label className="lbl">E-mail(s) de l’équipe — reçoivent chaque nouvelle réservation, avis et message de contact (séparés par des virgules)
+        <input className="inp" type="text" inputMode="email" placeholder="booking@jstraveltrip.com" value={s.notifications?.adminEmail || ''} onChange={(e) => set('notifications.adminEmail', e.target.value)} /></label>
+      <p className="muted" style={{ margin: 0 }}>Le client reçoit aussi un e-mail de confirmation à l’adresse saisie dans sa réservation. Le serveur d’envoi se règle dans le fichier <code>server/.env</code> du serveur (voir <code>server/.env.example</code>), puis <code>pm2 restart js-travel-api --update-env</code>.</p>
       {st && (
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
           {line(st.smtp, `E-mails : serveur ${st.smtpHost}, expéditeur ${st.mailFrom}`, 'E-mails : non configurés (SMTP_HOST, SMTP_USER, SMTP_PASS)')}
-          {line(!!st.teamEmail, `Copie des réservations à l’équipe : ${st.teamEmail}`, 'Copie à l’équipe : TEAM_EMAIL vide')}
+          {line(!!st.teamEmail, `Réservations envoyées à l’équipe : ${st.teamEmail}`, 'Aucune adresse d’équipe : remplissez le champ ci-dessus et enregistrez')}
           {line(st.whatsappCloud, 'WhatsApp : API WhatsApp Business configurée', 'WhatsApp : non configuré (WHATSAPP_TOKEN, WHATSAPP_PHONE_ID)')}
           {line(!!st.clientTemplate, `Modèle des messages clients : ${st.clientTemplate}`, 'Modèle des messages clients : WHATSAPP_CLIENT_TEMPLATE vide (messages refusés par Meta hors des 24 h)')}
           {line(!!st.adminTemplate, `Modèle des alertes équipe : ${st.adminTemplate}`, 'Modèle des alertes équipe : WHATSAPP_TEMPLATE vide')}

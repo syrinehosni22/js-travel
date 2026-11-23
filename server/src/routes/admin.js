@@ -9,7 +9,7 @@ import { refreshRating } from '../services/reviews.js';
 import { auth, allow, audit, signToken } from '../middleware.js';
 import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
-import { notifyStatus, sendDriverRoadmap, notifyAdminWhatsApp, bookingText, sendMail, sendWhatsApp, notificationStatus } from '../services/notify.js';
+import { notifyStatus, sendDriverRoadmap, notifyAdminWhatsApp, bookingText, sendMail, sendWhatsApp, notificationStatus, teamEmail } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
 import { byDisplayOrder } from '../lib/order.js';
@@ -467,7 +467,7 @@ crud(Post, 'posts', ['editor', 'manager']);
 crud(Message, 'messages');
 
 /* Test de l'alerte WhatsApp équipe (Admin → Paramètres) */
-r.get('/notifications/status', allow(), (_req, res) => res.json(notificationStatus()));
+r.get('/notifications/status', allow(), async (_req, res) => res.json({ ...notificationStatus(), teamEmail: await teamEmail() }));
 r.post('/notifications/test-email', allow(), async (req, res) => {
   const to = String(req.body?.to || req.user?.email || '').trim();
   res.json({ to, ...(await sendMail({ to, subject: 'JS Travel : test des e-mails', html: '<p>Les e-mails du site fonctionnent : les clients recevront leurs confirmations et vouchers.</p>' })) });
