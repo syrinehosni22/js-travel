@@ -45,6 +45,8 @@ export default function SettingsAdmin() {
           <CityTransfersTable list={s.cityTransfers || []} onChange={(v) => set('cityTransfers', v)} />
         </section>
 
+        <MessagingPanel email={user?.email} />
+
         <WhatsAppAlertsPanel s={s} set={set} />
 
         <section className="panel stack">
@@ -135,6 +137,47 @@ export default function SettingsAdmin() {
 
 /** Rubrique « Notre entreprise » de l'accueil : texte, photo, vidéo et chiffres clés */
 /** Alerte WhatsApp envoyée à l'équipe à chaque nouvelle réservation */
+/** E-mails et WhatsApp aux clients : état de la configuration du serveur + tests */
+function MessagingPanel({ email }) {
+  const { data: st } = useLoad(() => adminApi.get('/notifications/status'));
+  const [to, setTo] = useState(email || '');
+  const [phone, setPhone] = useState('');
+  const [lang, setLang] = useState('fr');
+  const [res, setRes] = useState({});
+  async function run(key, call) {
+    setRes((r) => ({ ...r, [key]: { busy: true } }));
+    try { const out = await call(); setRes((r) => ({ ...r, [key]: out })); } catch (x) { setRes((r) => ({ ...r, [key]: { ok: false, error: x.message } })); }
+  }
+  const line = (ok, yes, no) => <li className={ok ? '' : 'muted'}>{ok ? '✓' : '✗'} {ok ? yes : no}</li>;
+  const show = (r) => r && !r.busy && <p className={`alert ${r.ok ? 'alert--ok' : 'alert--warn'}`} style={{ margin: 0 }}>{r.ok ? 'Envoyé.' : `Échec — ${r.error || 'erreur inconnue'}`}</p>;
+  return (
+    <section className="panel stack">
+      <h2 style={{ fontSize: 18 }}>E-mails et WhatsApp aux clients</h2>
+      <p className="muted" style={{ margin: 0 }}>Ces réglages se font dans le fichier <code>server/.env</code> du serveur (voir <code>server/.env.example</code>), puis <code>pm2 restart js-travel-api --update-env</code>.</p>
+      {st && (
+        <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
+          {line(st.smtp, `E-mails : serveur ${st.smtpHost}, expéditeur ${st.mailFrom}`, 'E-mails : non configurés (SMTP_HOST, SMTP_USER, SMTP_PASS)')}
+          {line(!!st.teamEmail, `Copie des réservations à l’équipe : ${st.teamEmail}`, 'Copie à l’équipe : TEAM_EMAIL vide')}
+          {line(st.whatsappCloud, 'WhatsApp : API WhatsApp Business configurée', 'WhatsApp : non configuré (WHATSAPP_TOKEN, WHATSAPP_PHONE_ID)')}
+          {line(!!st.clientTemplate, `Modèle des messages clients : ${st.clientTemplate}`, 'Modèle des messages clients : WHATSAPP_CLIENT_TEMPLATE vide (messages refusés par Meta hors des 24 h)')}
+          {line(!!st.adminTemplate, `Modèle des alertes équipe : ${st.adminTemplate}`, 'Modèle des alertes équipe : WHATSAPP_TEMPLATE vide')}
+        </ul>
+      )}
+      <div className="row" style={{ alignItems: 'end', flexWrap: 'wrap' }}>
+        <label className="lbl" style={{ flex: '1 1 260px' }}>Envoyer un e-mail de test à<input className="inp" type="email" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        <button type="button" className="btn btn--outline btn-sm" disabled={res.mail?.busy || !to} onClick={() => run('mail', () => adminApi.post('/notifications/test-email', { to }))}>{res.mail?.busy ? 'Envoi…' : 'Tester l’e-mail'}</button>
+      </div>
+      {show(res.mail)}
+      <div className="row" style={{ alignItems: 'end', flexWrap: 'wrap' }}>
+        <label className="lbl" style={{ flex: '1 1 200px' }}>WhatsApp de test à un client<input className="inp" placeholder="+216 20 000 000" value={phone} onChange={(e) => setPhone(e.target.value)} /></label>
+        <label className="lbl" style={{ width: 110 }}>Langue<select className="inp" value={lang} onChange={(e) => setLang(e.target.value)}>{['fr', 'en', 'de', 'it', 'es'].map((l) => <option key={l} value={l}>{l.toUpperCase()}</option>)}</select></label>
+        <button type="button" className="btn btn--outline btn-sm" disabled={res.wa?.busy || !phone} onClick={() => run('wa', () => adminApi.post('/notifications/test-client', { phone, lang }))}>{res.wa?.busy ? 'Envoi…' : 'Tester WhatsApp'}</button>
+      </div>
+      {show(res.wa)}
+    </section>
+  );
+}
+
 function WhatsAppAlertsPanel({ s, set }) {
   const n = s.notifications || {};
   const [test, setTest] = useState(null);
