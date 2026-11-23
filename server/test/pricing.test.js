@@ -205,3 +205,17 @@ test('déplacement : prix commun à toutes les excursions, remplacé par le prix
   const r = computeExcursionPrice(base, { participants: { adult: 2 }, city: 'Mahdia' }, { cityTransfers: common });
   assert.equal(r.lines.find((l) => l.key === 'cityTransfer').amount, 20);
 });
+
+test('déplacement : pas de frais quand l’hôtel est dans la ville de départ, même écrite autrement', async () => {
+  const { sameCity } = await import('../src/lib/pricing.js');
+  const exc = { departureCities: ['Sousse', 'Hammamet'], pricing: {} };
+  const common = [{ city: 'Nabeul', price: 30 }];
+  for (const c of ['Sousse', 'sousse', ' SOUSSE ', 'Sousse, Tunisie', 'Sousse centre', 'Port El Kantaoui', 'Susa', 'Hammamet Yasmine', 'Yasmine Hammamet']) {
+    assert.equal(cityTransferFor(exc, c, common), null, c);
+  }
+  assert.equal(cityTransferFor(exc, 'Nabeul', common).price, 30);
+  assert.equal(cityTransferFor(exc, 'Nabeul, Tunisie', common).price, 30);
+  assert.equal(cityTransferFor(exc, 'Monastir', common).onRequest, true);
+  assert.equal(sameCity('Tunis', 'Tunisie'), false);
+  assert.equal(sameCity('El Jem', 'Jemmal'), false);
+});

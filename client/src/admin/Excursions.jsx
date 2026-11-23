@@ -556,6 +556,7 @@ function CityTransfersPanel({ e, set }) {
     <fieldset className="panel stack" style={{ gap: 10 }}>
       <legend><strong>Déplacement depuis une autre ville</strong></legend>
       <p className="muted" style={{ margin: 0 }}>Sur le formulaire final, le client indique la ville de son hôtel. Depuis les villes de départ ({departures}) et les zones de prise en charge, rien n’est ajouté. Depuis une autre ville, le prix du déplacement s’ajoute. Pour une ville sans prix, le client est prévenu que le prix sera confirmé par votre équipe.</p>
+      {!(e.departureCities || []).length && <p className="alert alert--warn" style={{ margin: 0 }}>Aucune ville de départ : le déplacement s’ajoute quelle que soit la ville de l’hôtel. Indiquez les villes de départ dans l’onglet « Infos et photos ».</p>}
       <div className="stack" style={{ gap: 6 }}>
         <strong>Prix communs à toutes les excursions</strong>
         {common.length

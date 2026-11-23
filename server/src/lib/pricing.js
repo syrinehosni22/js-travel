@@ -123,7 +123,24 @@ export function capacityOf(excursion) {
   return pr.maxGroup;
 }
 
-const normCity = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_']/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+const normCity = (s) => String(s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[-_',.()/]/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase();
+/** Noms étrangers et quartiers ramenés à la ville (ex. « Susa » → Sousse, « Port El Kantaoui » → Sousse) */
+const CITY_ALIASES = {
+  susa: 'sousse', 'port el kantaoui': 'sousse', kantaoui: 'sousse', tunisi: 'tunis', tunez: 'tunis',
+  jerba: 'djerba', yerba: 'djerba', 'houmt souk': 'djerba', midoun: 'djerba', skanes: 'monastir', yasmine: 'hammamet',
+};
+const aliasOf = (c) => CITY_ALIASES[c] || Object.entries(CITY_ALIASES).find(([k]) => ` ${c} `.includes(` ${k} `))?.[1] || c;   // mots entiers : « Tunisie » n'est pas « Tunisi »
+/**
+ * Même ville ? Insensible aux accents, majuscules et ponctuation ; « Sousse, Tunisie » ou
+ * « Hammamet Yasmine » comptent pour Sousse et Hammamet.
+ */
+export function sameCity(a, b) {
+  const x = normCity(a), y = normCity(b);
+  if (!x || !y) return false;
+  if (x === y || aliasOf(x) === aliasOf(y)) return true;
+  const has = (long, short) => short.length >= 4 && ` ${long} `.includes(` ${short} `);
+  return has(x, y) || has(y, x);
+}
 
 /**
  * Transfert depuis la ville de l'hôtel du client.
@@ -138,9 +155,10 @@ export function cityTransferFor(excursion, city, common = []) {
   const c = normCity(city);
   if (!c) return null;
   const pr = excursion?.pricing || {};
-  const local = [...(excursion?.departureCities || []), ...(pr.zones || []).flatMap((z) => [z.key, z.label])].map(normCity);
-  if (local.includes(c)) return null;
-  const find = (list) => (list || []).find((r) => r && normCity(r.city) === c && +r.price > 0);
+  // Hôtel dans une ville de départ (ou une zone de prise en charge) de l'excursion : pas de frais de déplacement
+  const local = [...(excursion?.departureCities || []), ...(pr.zones || []).flatMap((z) => [z.key, z.label])];
+  if (local.some((l) => sameCity(l, city))) return null;
+  const find = (list) => (list || []).find((r) => r && +r.price > 0 && normCity(r.city) === c) || (list || []).find((r) => r && +r.price > 0 && sameCity(r.city, city));
   const row = find(pr.cityTransfers) || find(common);
   if (!row || !(+row.price > 0)) return { city: String(city).trim(), onRequest: true };
   return { city: row.city, price: +row.price, per: ['person', 'vehicle'].includes(row.per) ? row.per : 'booking' };
