@@ -155,6 +155,15 @@ export default function Layout({ children }) {
     window.addEventListener('scroll', on, { passive: true });
     return () => window.removeEventListener('scroll', on);
   }, []);
+  // Pendant la saisie (clavier ouvert sur mobile), les boutons flottants se cachent : ils ne recouvrent plus les champs
+  useEffect(() => {
+    const field = (e) => e.target?.matches?.('input:not([type=checkbox]):not([type=radio]), select, textarea');
+    const focus = (e) => { if (field(e)) document.body.classList.add('is-typing'); };
+    const blur = (e) => { if (field(e)) document.body.classList.remove('is-typing'); };
+    document.addEventListener('focusin', focus);
+    document.addEventListener('focusout', blur);
+    return () => { document.removeEventListener('focusin', focus); document.removeEventListener('focusout', blur); };
+  }, []);
   const wa = waLink(settings?.contact?.whatsapp, t('hero.waText'));
   return (
     <>
