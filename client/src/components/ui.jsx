@@ -67,8 +67,11 @@ export function Media({ photo, src, alt, ph, className = '', style, children, ea
  * Balises SEO : title, description, canonical, hreflang des 5 langues, Open Graph, données structurées (§8).
  * `alternates` = { en: '/en/...', fr: '/fr/...' } ; à défaut, la même URL dans chaque langue.
  */
-export function Seo({ title, description, canonical, alternates, image, noindex, jsonLd, keywords = [] }) {
+export function Seo({ title, description: own, canonical, alternates, image, noindex, jsonLd, keywords = [] }) {
   const { lang, settings } = useApp();
+  const { t } = useTranslation();
+  // Page sans description : celle de l'accueil, dans la langue de la page (jamais le texte français d'index.html)
+  const description = own || settings?.seoHome?.metaDescription || t('hero.text');
   const allKeywords = [...new Set([...keywords, ...(settings?.siteKeywords || [])].map((k) => String(k || '').trim()).filter(Boolean))];
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
   const url = canonical || (typeof window !== 'undefined' ? window.location.pathname : '');

@@ -1,10 +1,13 @@
 import { Router } from 'express';
 import { Excursion, Post, TransferRoute, Redirect } from '../models/index.js';
 import { LANGS, config } from '../config.js';
+import { PATHS } from '../lib/paths.js';
 
 /** sitemap.xml multilingue avec hreflang, robots.txt et redirections 301 (§6, §8.1) */
 const r = Router();
-const PAGES = { excursions: 'excursions', transfers: 'transfers', custom: 'custom', blog: 'blog', faq: 'faq', contact: 'contact' };
+const PAGES = ['excursions', 'transfers', 'custom', 'blog', 'faq', 'contact'];
+/** Adresse d'une page dans une langue, avec les segments traduits du site (ex. /fr/transferts) */
+const page = (l, key, ...rest) => '/' + [l, PATHS[l][key], ...rest].filter(Boolean).join('/');
 
 function urlEntry(paths, lastmod) {
   // paths : { en: '/en/...', fr: '/fr/...' }
@@ -21,13 +24,13 @@ r.get('/sitemap.xml', async (_req, res) => {
   ]);
   let xml = '';
   xml += urlEntry(Object.fromEntries(LANGS.map((l) => [l, `/${l}/`])));
-  for (const p of Object.values(PAGES)) xml += urlEntry(Object.fromEntries(LANGS.map((l) => [l, `/${l}/${p}`])));
+  for (const p of PAGES) xml += urlEntry(Object.fromEntries(LANGS.map((l) => [l, page(l, p)])));
   for (const e of excursions) {
     const langs = (e.publishedLangs || []).filter((l) => e.slug?.[l] && e.seo?.[l]?.index !== false);
-    if (langs.length) xml += urlEntry(Object.fromEntries(langs.map((l) => [l, `/${l}/excursions/${e.slug[l]}`])), e.updatedAt);
+    if (langs.length) xml += urlEntry(Object.fromEntries(langs.map((l) => [l, page(l, 'excursions', e.slug[l])])), e.updatedAt);
   }
-  for (const p of posts) xml += urlEntry(Object.fromEntries(LANGS.filter((l) => p.slug?.[l]).map((l) => [l, `/${l}/blog/${p.slug[l]}`])), p.updatedAt);
-  for (const t of routes) xml += urlEntry(Object.fromEntries(LANGS.filter((l) => t.slug?.[l]).map((l) => [l, `/${l}/transfers/${t.slug[l]}`])), t.updatedAt);
+  for (const p of posts) xml += urlEntry(Object.fromEntries(LANGS.filter((l) => p.slug?.[l]).map((l) => [l, page(l, 'blog', p.slug[l])])), p.updatedAt);
+  for (const t of routes) xml += urlEntry(Object.fromEntries(LANGS.filter((l) => t.slug?.[l]).map((l) => [l, page(l, 'transfers', t.slug[l])])), t.updatedAt);
   res.type('application/xml').send(`<?xml version="1.0" encoding="UTF-8"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">${xml}</urlset>`);
 });
 

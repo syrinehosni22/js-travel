@@ -6,13 +6,8 @@ export const DEFAULT_LANG = 'en';
 export const LANG_NAMES = { en: 'English', fr: 'Français', de: 'Deutsch', it: 'Italiano', es: 'Español' };
 
 /** Segments d'URL traduits (§6 : URL propre à chaque langue) */
-export const PATHS = {
-  en: { excursions: 'excursions', transfers: 'transfers', custom: 'tailor-made', blog: 'blog', faq: 'faq', contact: 'contact', cart: 'cart', checkout: 'checkout', booking: 'booking', legal: 'legal' },
-  fr: { excursions: 'excursions', transfers: 'transferts', custom: 'sur-mesure', blog: 'blog', faq: 'faq', contact: 'contact', cart: 'panier', checkout: 'reservation', booking: 'ma-reservation', legal: 'mentions' },
-  de: { excursions: 'ausfluege', transfers: 'transfers', custom: 'massgeschneidert', blog: 'blog', faq: 'faq', contact: 'kontakt', cart: 'warenkorb', checkout: 'buchung', booking: 'meine-buchung', legal: 'rechtliches' },
-  it: { excursions: 'escursioni', transfers: 'trasferimenti', custom: 'su-misura', blog: 'blog', faq: 'faq', contact: 'contatti', cart: 'carrello', checkout: 'prenotazione', booking: 'la-mia-prenotazione', legal: 'note-legali' },
-  es: { excursions: 'excursiones', transfers: 'traslados', custom: 'a-medida', blog: 'blog', faq: 'faq', contact: 'contacto', cart: 'cesta', checkout: 'reserva', booking: 'mi-reserva', legal: 'legal' },
-};
+export { PATHS } from './lib/paths.js';
+import { PATHS } from './lib/paths.js';
 export const path = (lang, key, ...rest) => '/' + [lang, PATHS[lang][key], ...rest].filter(Boolean).join('/');
 
 const en = {
