@@ -16,7 +16,7 @@ const transport = config.smtp.host
 /** Ce qui est configuré sur le serveur (sans aucun secret) — écran Paramètres de l'admin */
 export function notificationStatus() {
   return {
-    smtp: !!transport, smtpHost: config.smtp.host || null, mailFrom: config.smtp.from, teamEmail: config.teamEmail || null,   // complété par la route avec l'adresse des Paramètres
+    smtp: !!transport, smtpHost: config.smtp.host || null, siteUrl: config.siteUrl, siteUrlProblem: siteUrlProblem(), mailFrom: config.smtp.from, teamEmail: config.teamEmail || null,   // complété par la route avec l'adresse des Paramètres
     whatsappCloud: !!(config.whatsapp.token && config.whatsapp.phoneId),
     adminTemplate: config.whatsapp.template || null, clientTemplate: config.whatsapp.clientTemplate || null,
   };
@@ -29,11 +29,36 @@ export async function teamEmail() {
   return list.join(', ') || null;
 }
 
+/** Version texte d'un e-mail HTML : les filtres anti-spam pénalisent les e-mails sans partie texte */
+export function htmlToText(html) {
+  return String(html || '')
+    .replace(/<a [^>]*href="([^"]+)"[^>]*>(.*?)<\/a>/gis, (_m, href, label) => `${label.replace(/<[^>]+>/g, '').trim()} : ${href}`)
+    .replace(/<\/(p|h1|h2|h3|tr|div|table)>|<br\s*\/?>/gi, '\n')
+    .replace(/<\/td>/gi, '  ')
+    .replace(/<[^>]+>/g, '')
+    .replace(/&nbsp;/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .split('\n').map((l) => l.replace(/[ \t]+/g, ' ').trim()).filter((l, i, a) => l || (a[i - 1] && a[i - 1].trim()))
+    .join('\n').trim();
+}
+
+/** Adresse du site suspecte pour les filtres anti-spam (IP, localhost, http) */
+export function siteUrlProblem(url = config.siteUrl) {
+  if (/localhost|127\.0\.0\.1/.test(url)) return 'localhost';
+  if (/^https?:\/\/\d+\.\d+\.\d+\.\d+/.test(url)) return 'ip';
+  if (!/^https:\/\//.test(url)) return 'http';
+  return null;
+}
+
 /** E-mail ; sans SMTP configuré, il est seulement affiché dans la console. Renvoie { ok, error }. */
 export async function sendMail({ to, subject, html, attachments }) {
   if (!to) return { ok: false, error: 'Aucun destinataire' };
   if (!transport) { console.log(`[mail → ${to}] ${subject}`); return { ok: false, error: 'SMTP non configuré (SMTP_HOST vide dans server/.env)' }; }
-  try { await transport.sendMail({ from: config.smtp.from, to, subject, html, attachments }); return { ok: true }; }
+  try {
+    const s = await getSettings().catch(() => ({}));
+    const replyTo = s.contact?.email || undefined;
+    await transport.sendMail({ from: config.smtp.from, to, replyTo, subject, html, text: htmlToText(html), attachments });
+    return { ok: true };
+  }
   catch (e) { console.error('[mail] échec', e.message); return { ok: false, error: e.message }; }
 }
 
@@ -142,9 +167,10 @@ export function bookingText(b) {
 const manageUrl = (b) => `${config.siteUrl}/${b.lang}/booking/${b.ref}?token=${b.token}`;
 
 function layout(title, body) {
-  return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#14213D;background:#F6F1E7;padding:12px;border-radius:14px">
+  // Document HTML complet (doctype, langue, titre) : un fragment seul fait monter le score anti-spam
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${title}</title></head><body style="margin:0;padding:16px;background:#ffffff"><div style="font-family:Arial,sans-serif;max-width:560px;margin:auto;color:#14213D;background:#F6F1E7;padding:12px;border-radius:14px">
   <div style="background:#14213D;color:#fff;padding:20px 24px;border-radius:12px 12px 0 0;border-bottom:3px solid #C9A227"><div style="font-family:Georgia,serif;font-size:22px;font-weight:bold">JS Travel <span style="color:#C9A227;font-family:Arial,sans-serif;font-size:11px;letter-spacing:4px;font-weight:normal">TUNISIA</span></div><h1 style="margin:8px 0 0;font-size:18px;font-weight:normal">${title}</h1></div>
-  <div style="background:#fff;border:1px solid #E7E1D3;border-top:0;padding:24px;border-radius:0 0 12px 12px">${body}</div></div>`;
+  <div style="background:#fff;border:1px solid #E7E1D3;border-top:0;padding:24px;border-radius:0 0 12px 12px">${body}<p style="margin:24px 0 0;font-size:12px;color:#666">JS Travel Tunisia · <a href="${config.siteUrl}" style="color:#666">${config.siteUrl.replace(/^https?:\/\//, '')}</a></p></div></div></body></html>`;
 }
 
 function summary(b) {

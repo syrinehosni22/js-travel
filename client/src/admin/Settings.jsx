@@ -164,6 +164,7 @@ function MessagingPanel({ email, s, set }) {
       {st && (
         <ul style={{ margin: 0, paddingLeft: 0, listStyle: 'none', display: 'grid', gap: 4 }}>
           {line(st.smtp, `E-mails : serveur ${st.smtpHost}, expéditeur ${st.mailFrom}`, 'E-mails : non configurés (SMTP_HOST, SMTP_USER, SMTP_PASS)')}
+          {line(!st.siteUrlProblem, `Adresse du site dans les e-mails : ${st.siteUrl}`, `Adresse du site dans les e-mails : ${st.siteUrl} — mettez SITE_URL=https://votre-domaine (sinon les e-mails sont classés en spam)`)}
           {line(!!st.teamEmail, `Réservations envoyées à l’équipe : ${st.teamEmail}`, 'Aucune adresse d’équipe : remplissez le champ ci-dessus et enregistrez')}
           {line(st.whatsappCloud, 'WhatsApp : API WhatsApp Business configurée', 'WhatsApp : non configuré (WHATSAPP_TOKEN, WHATSAPP_PHONE_ID)')}
           {line(!!st.clientTemplate, `Modèle des messages clients : ${st.clientTemplate}`, 'Modèle des messages clients : WHATSAPP_CLIENT_TEMPLATE vide (messages refusés par Meta hors des 24 h)')}
