@@ -118,7 +118,7 @@ export default function Reviews({ excursionId, rating, lang }) {
           ))}
         </ul>
       )}
-      {list?.length > 4 && !all && <button type="button" className="btn btn--outline" onClick={() => setAll(true)}>{t('rev.showAll', { n: list.length })}</button>}
+      {list?.length > 4 && <button type="button" className="btn btn--outline" aria-expanded={all} onClick={() => { if (all) document.getElementById('reviews')?.scrollIntoView({ behavior: 'smooth', block: 'start' }); setAll(!all); }}>{all ? t('rev.showLess') : t('rev.showAll', { n: list.length })}</button>}
     </section>
   );
 }
