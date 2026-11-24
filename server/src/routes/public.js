@@ -140,7 +140,7 @@ const escHtml = (s) => String(s || '').replace(/[&<>]/g, (c) => ({ '&': '&amp;',
 /* Avis sur le site et l'expérience (bouton « Avis » à côté de WhatsApp) */
 r.get('/reviews', async (_req, res) => {
   const [list, rating] = await Promise.all([
-    Review.find({ scope: 'site', status: 'approved' }).sort({ createdAt: -1 }).limit(30).lean(),
+    Review.find({ scope: 'site', status: 'approved' }).sort({ createdAt: -1 }).limit(200).lean(),
     siteRating(),
   ]);
   res.json({ list: list.map(publicReview), rating });

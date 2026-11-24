@@ -69,13 +69,24 @@ export function useSiteReviews() {
   return data;
 }
 
+const FIRST = 6;   // avis affichés avant « Voir tous les avis »
+
 export function SiteReviewList({ list }) {
   const { t } = useTranslation();
   const { lang } = useApp();
+  const [all, setAll] = useState(false);
+  const top = useRef(null);
   if (!list?.length) return null;
+  const more = list.length > FIRST;
+  function toggle() {
+    // En refermant, on revient au début de la liste pour ne pas perdre le visiteur
+    if (all) top.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setAll(!all);
+  }
   return (
-    <div className="review-grid">
-      {list.slice(0, 6).map((r) => (
+    <>
+    <div className="review-grid" ref={top} id="site-reviews">
+      {(all ? list : list.slice(0, FIRST)).map((r) => (
         <blockquote key={r.id} className="review">
           <Stars value={r.rating} size={16} label={t('rev.star', { count: r.rating })} />
           {r.comment && <p>{r.comment}</p>}
@@ -84,5 +95,13 @@ export function SiteReviewList({ list }) {
         </blockquote>
       ))}
     </div>
+    {more && (
+      <div className="review-more">
+        <button type="button" className="btn btn--gold-outline" aria-expanded={all} aria-controls="site-reviews" onClick={toggle}>
+          {all ? t('rev.showLess') : t('rev.showAll', { n: list.length })}
+        </button>
+      </div>
+    )}
+    </>
   );
 }

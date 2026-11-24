@@ -686,3 +686,6 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Menu mobile toujours au-dessus du contenu de la page */
 @media (max-width: 1000px) { .nav.is-open { z-index: 70; } }
+
+/* Bouton « Voir tous les avis » sous la liste */
+.review-more { display: flex; justify-content: center; margin-top: 24px; }
