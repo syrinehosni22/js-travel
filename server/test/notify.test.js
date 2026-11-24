@@ -31,3 +31,14 @@ test('numéros WhatsApp : format international, numéros tunisiens sans indicati
   assert.equal(intlPhone('123'), null);
   assert.equal(intlPhone(''), null);
 });
+
+test('e-mails : version texte et adresse du site suspecte', async () => {
+  const { htmlToText, siteUrlProblem } = await import('../src/services/notify.js');
+  const txt = htmlToText('<h1>Réservation confirmée</h1><p>Bonjour Amel,</p><table><tr><td>Carthage</td><td>190,00 €</td></tr></table><p><a href="https://jstraveltrip.com/fr/booking/X">Gérer ma réservation</a></p><p>A &amp; B</p>');
+  for (const part of ['Réservation confirmée', 'Bonjour Amel,', 'Carthage 190,00 €', 'Gérer ma réservation : https://jstraveltrip.com/fr/booking/X', 'A & B']) assert.ok(txt.includes(part), `${part}\n---\n${txt}`);
+  assert.ok(!/<[a-z]/i.test(txt));
+  assert.equal(siteUrlProblem('https://jstraveltrip.com'), null);
+  assert.equal(siteUrlProblem('http://163.245.217.83'), 'ip');
+  assert.equal(siteUrlProblem('http://localhost:5173'), 'localhost');
+  assert.equal(siteUrlProblem('http://jstraveltrip.com'), 'http');
+});
