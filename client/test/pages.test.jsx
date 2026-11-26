@@ -173,7 +173,8 @@ describe('site public', () => {
   it('bouton « Avis » à côté de WhatsApp : avis global sur le site, et avis publiés sur l’accueil', async () => {
     renderAt('/fr');
     expect(await screen.findByText('Équipe au top')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: '5 / 5 · 1' })).toBeTruthy();
+    // Note : « 5,0 ★★★★★ 1 avis » (étoiles lues « 5 / 5 » par les lecteurs d’écran)
+    expect(screen.getByRole('heading', { name: /5 \/ 5.*1 (avis|review)/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Votre avis sur JS Travel' }));
     const dialog = await screen.findByRole('dialog', { name: 'Votre avis sur JS Travel' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publier mon avis' }));

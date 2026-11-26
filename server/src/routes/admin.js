@@ -4,12 +4,13 @@ import { z } from 'zod';
 import rateLimit from 'express-rate-limit';
 import { authenticator } from 'otplib';
 import { computeExcursionPrice, groupTable, minimumWarnings } from '../lib/pricing.js';
-import { User, Excursion, Booking, Location, Zone, TransferConfig, TransferRoute, Promo, Partner, Settings, Post, Message, AuditLog, Redirect, Customer, Waitlist, Review } from '../models/index.js';
+import { User, Excursion, Booking, Location, Zone, TransferConfig, TransferRoute, Promo, Partner, Settings, Post, Message, AuditLog, Redirect, Customer, Waitlist, Review, FleetVehicle } from '../models/index.js';
 import { refreshRating } from '../services/reviews.js';
 import { auth, allow, audit, signToken } from '../middleware.js';
 import { HttpError } from '../services/booking.js';
 import { getSettings, clearSettingsCache, refreshRates } from '../services/settings.js';
-import { notifyStatus, sendDriverRoadmap, notifyAdminWhatsApp, bookingText, sendMail, sendWhatsApp, notificationStatus, teamEmail } from '../services/notify.js';
+import { driversFor } from '../services/drivers.js';
+import { notifyStatus, sendDriverRoadmap, roadmapText, notifyAdminWhatsApp, bookingText, sendMail, sendWhatsApp, notificationStatus, teamEmail } from '../services/notify.js';
 import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
 import { byDisplayOrder } from '../lib/order.js';
@@ -112,7 +113,7 @@ r.get('/bookings', allow('manager', 'partner'), async (req, res) => {
   }
   const page = Math.max(1, +req.query.page || 1);
   const [items, total] = await Promise.all([
-    Booking.find(q).sort({ firstServiceDate: req.query.sort === 'created' ? undefined : 1, createdAt: -1 }).skip((page - 1) * 50).limit(50).populate('items.driver', 'name phone').lean(),
+    Booking.find(q).sort({ firstServiceDate: req.query.sort === 'created' ? undefined : 1, createdAt: -1 }).skip((page - 1) * 50).limit(50).populate('items.driver', 'name phone').populate('items.vehicle', 'label plate').lean(),
     Booking.countDocuments(q),
   ]);
   res.json({ items, total, page });
@@ -127,7 +128,7 @@ r.get('/bookings/export.csv', allow('manager'), async (req, res) => {
 });
 
 r.get('/bookings/:id', allow('manager', 'partner', 'driver'), async (req, res) => {
-  const b = await Booking.findById(req.params.id).populate('items.driver', 'name phone').populate('items.excursion', 'title').lean();
+  const b = await Booking.findById(req.params.id).populate('items.driver', 'name phone').populate('items.vehicle', 'label plate capacity').populate('items.excursion', 'title').lean();
   if (!b) throw new HttpError(404, 'NOT_FOUND');
   if (req.user.role === 'partner' && String(b.partner) !== String(req.user.partner)) throw new HttpError(403, 'FORBIDDEN');
   res.json(b);
@@ -139,7 +140,7 @@ r.patch('/bookings/:id', allow('manager'), async (req, res) => {
     status: z.enum(STATUS).optional(),
     collectedAmount: z.number().optional(), collectedCurrency: z.string().optional(),
     customer: z.object({ name: z.string(), email: z.string().email(), phone: z.string(), hotel: z.string().optional(), city: z.string().optional(), nationality: z.string().optional(), room: z.string().optional(), notes: z.string().optional() }).partial().optional(),
-    items: z.array(z.object({ _id: z.string(), date: z.string().optional(), time: z.string().optional(), status: z.enum(['pending', 'confirmed', 'cancelled', 'waitlist']).optional(), driver: z.string().nullable().optional(), vehiclePlate: z.string().optional() })).optional(),
+    items: z.array(z.object({ _id: z.string(), date: z.string().optional(), time: z.string().optional(), status: z.enum(['pending', 'confirmed', 'cancelled', 'waitlist']).optional(), driver: z.string().nullable().optional(), vehicle: z.string().nullable().optional(), vehiclePlate: z.string().optional() })).optional(),
     note: z.string().optional(),
   }).parse(req.body);
   const b = await Booking.findById(req.params.id);
@@ -199,8 +200,8 @@ r.post('/bookings/bulk', allow('manager'), async (req, res) => {
 r.post('/bookings/:id/resend', allow('manager'), async (req, res) => {
   const b = await Booking.findById(req.params.id);
   if (!b) throw new HttpError(404, 'NOT_FOUND');
-  await notifyStatus(b, 'confirmed');
-  res.json({ ok: true });
+  const r = await notifyStatus(b, 'confirmed');
+  res.json({ ok: true, ...r });
 });
 
 /** Réservation saisie par l'équipe (téléphone, WhatsApp) */
@@ -224,19 +225,102 @@ r.get('/planning', allow('manager', 'driver'), async (req, res) => {
     { $project: { ref: 1, status: 1, customer: 1, item: '$items' } },
     { $sort: { 'item.date': 1, 'item.time': 1 } },
   ]);
-  const drivers = req.user.role === 'driver' ? [] : await User.find({ role: 'driver', active: true }).select('name phone vehicle unavailableDates').lean();
-  res.json({ items: list, drivers });
+  const drivers = req.user.role === 'driver' ? [] : await User.find({ role: 'driver', active: true }).select('name phone unavailableDates').lean();
+  const vehicles = await FleetVehicle.find(req.user.role === 'driver' ? {} : { active: true }).sort({ label: 1 }).lean();
+  res.json({ items: list, drivers, vehicles });
 });
 
+/*
+ * Feuilles de route : pour la date choisie, chaque chauffeur qui a au moins une prestation reçoit
+ * par WhatsApp la liste de ses prestations (heure, excursion ou trajet, client, hôtel, téléphone).
+ * La réponse donne aussi le texte et le numéro, pour l'envoyer à la main si l'envoi automatique échoue.
+ */
 r.post('/planning/roadmaps', allow('manager'), async (req, res) => {
   const date = req.body.date || new Date(Date.now() + 86400000).toISOString().slice(0, 10);
   const drivers = await User.find({ role: 'driver', active: true }).lean();
+  const fleet = new Map((await FleetVehicle.find().lean()).map((v) => [String(v._id), [v.label, v.plate && `(${v.plate})`].filter(Boolean).join(' ')]));
+  const results = [];
   for (const d of drivers) {
-    const items = await Booking.aggregate([{ $unwind: '$items' }, { $match: { 'items.date': date, 'items.driver': d._id, 'items.status': { $ne: 'cancelled' } } },
-      { $project: { title: '$items.title', time: '$items.time', transfer: '$items.transfer', customer: '$customer.name', phone: '$customer.phone', hotel: '$customer.hotel' } }, { $sort: { time: 1 } }]);
-    await sendDriverRoadmap(d, items);
+    const items = await Booking.aggregate([{ $match: { status: { $nin: ['cancelled', 'no_show'] } } }, { $unwind: '$items' }, { $match: { 'items.date': date, 'items.driver': d._id, 'items.status': { $ne: 'cancelled' } } },
+      { $project: { title: '$items.title', time: '$items.time', transfer: '$items.transfer', customer: '$customer.name', phone: '$customer.phone', hotel: '$customer.hotel', vehicleId: '$items.vehicle',
+        pax: { $add: [{ $ifNull: ['$items.participants.adult', 0] }, { $ifNull: ['$items.participants.child', 0] }, { $ifNull: ['$items.participants.infant', 0] }] } } }, { $sort: { time: 1 } }]);
+    if (!items.length) continue;
+    for (const it of items) it.vehicle = it.vehicleId ? fleet.get(String(it.vehicleId)) : '';
+    const r = d.phone ? await sendDriverRoadmap(d, items, date) : { ok: false, error: 'Pas de numéro de téléphone' };
+    results.push({ driver: d.name, phone: d.phone || '', count: items.length, text: roadmapText(d, date, items), ...r });
   }
-  res.json({ sent: drivers.length, date });
+  res.json({ date, sent: results.filter((x) => x.ok).length, results });
+});
+
+/* ================= Flotte de véhicules ================= */
+const fleetBody = z.object({ label: z.string().trim().min(2), plate: z.string().optional(), capacity: z.coerce.number().int().min(0).optional(), notes: z.string().optional(), active: z.boolean().optional() });
+r.get('/fleet', allow('manager'), async (_req, res) => res.json(await FleetVehicle.find().sort({ active: -1, label: 1 }).lean()));
+r.post('/fleet', allow('manager'), async (req, res) => {
+  const v = await FleetVehicle.create(fleetBody.parse(req.body));
+  await audit(req, 'create', 'vehicle', v._id);
+  res.status(201).json(v);
+});
+r.put('/fleet/:id', allow('manager'), async (req, res) => {
+  const v = await FleetVehicle.findByIdAndUpdate(req.params.id, fleetBody.partial().parse(req.body), { new: true });
+  if (!v) throw new HttpError(404, 'NOT_FOUND');
+  await audit(req, 'update', 'vehicle', v._id);
+  res.json(v);
+});
+r.delete('/fleet/:id', allow('manager'), async (req, res) => {
+  const v = await FleetVehicle.findById(req.params.id).lean();
+  if (!v) throw new HttpError(404, 'NOT_FOUND');
+  if (await Booking.exists({ 'items.vehicle': v._id })) {
+    await FleetVehicle.updateOne({ _id: v._id }, { active: false });
+    return res.json({ ok: true, deactivated: true });
+  }
+  await FleetVehicle.deleteOne({ _id: v._id });
+  await audit(req, 'delete', 'vehicle', v._id);
+  res.json({ ok: true });
+});
+
+/* ================= Chauffeurs ================= */
+const driverPublic = (u) => ({ _id: u._id, name: u.name, phone: u.phone, vehicle: u.vehicle || {}, languages: u.languages || [], notes: u.notes || '', active: u.active !== false,
+  email: /@chauffeurs\.invalid$/.test(u.email || '') ? '' : u.email, canLogin: !/@chauffeurs\.invalid$/.test(u.email || '') });
+const driverBody = z.object({
+  name: z.string().trim().min(2), phone: z.string().trim().min(6),
+  vehicle: z.object({ label: z.string().optional(), plate: z.string().optional(), capacity: z.coerce.number().int().min(0).optional() }).partial().optional(),
+  languages: z.array(z.string()).optional(), notes: z.string().optional(), active: z.boolean().optional(),
+  email: z.string().trim().email().optional().or(z.literal('')), password: z.string().min(10).optional().or(z.literal('')),
+});
+r.get('/drivers', allow('manager'), async (_req, res) => res.json((await User.find({ role: 'driver' }).sort({ active: -1, name: 1 }).lean()).map(driverPublic)));
+r.post('/drivers', allow('manager'), async (req, res) => {
+  const b = driverBody.parse(req.body);
+  if (b.email && !b.password) throw new HttpError(400, 'PASSWORD_REQUIRED', 'Pour qu’il puisse se connecter à son planning, donnez un mot de passe (10 caractères minimum).');
+  // Sans e-mail : fiche chauffeur sans accès à l'admin (adresse technique, mot de passe aléatoire)
+  const email = b.email || `chauffeur-${crypto.randomBytes(6).toString('hex')}@chauffeurs.invalid`;
+  const password = b.password || crypto.randomBytes(24).toString('hex');
+  const u = await User.create({ name: b.name, phone: b.phone, vehicle: b.vehicle, languages: b.languages, notes: b.notes, role: 'driver', email, passwordHash: await bcrypt.hash(password, 12) });
+  await audit(req, 'create', 'driver', u._id);
+  res.status(201).json(driverPublic(u.toObject()));
+});
+r.put('/drivers/:id', allow('manager'), async (req, res) => {
+  const b = driverBody.partial().parse(req.body);
+  const u = await User.findOne({ _id: req.params.id, role: 'driver' });
+  if (!u) throw new HttpError(404, 'NOT_FOUND');
+  for (const k of ['name', 'phone', 'vehicle', 'languages', 'notes', 'active']) if (b[k] !== undefined) u[k] = b[k];
+  if (b.email) u.email = b.email;
+  if (b.password) u.passwordHash = await bcrypt.hash(b.password, 12);
+  await u.save();
+  await audit(req, 'update', 'driver', u._id);
+  res.json(driverPublic(u.toObject()));
+});
+r.delete('/drivers/:id', allow('manager'), async (req, res) => {
+  const u = await User.findOne({ _id: req.params.id, role: 'driver' }).lean();
+  if (!u) throw new HttpError(404, 'NOT_FOUND');
+  // Chauffeur déjà affecté à des réservations : on le désactive pour garder l'historique
+  if (await Booking.exists({ 'items.driver': u._id })) {
+    await User.updateOne({ _id: u._id }, { active: false });
+    await audit(req, 'deactivate', 'driver', u._id);
+    return res.json({ ok: true, deactivated: true });
+  }
+  await User.deleteOne({ _id: u._id });
+  await audit(req, 'delete', 'driver', u._id);
+  res.json({ ok: true });
 });
 
 /* ================= Excursions (§7.1, §8.2) ================= */
@@ -486,7 +570,7 @@ r.post('/notifications/test', allow(), async (_req, res) => {
 r.get('/bookings/:id/whatsapp-text', allow('manager', 'partner'), async (req, res) => {
   const b = await Booking.findById(req.params.id).lean();
   if (!b) throw new HttpError(404, 'NOT_FOUND');
-  res.json({ text: bookingText(b).replace(/^Nouvelle réservation/, 'Réservation') });
+  res.json({ text: bookingText(b, await driversFor(b)).replace(/^Nouvelle réservation/, 'Réservation') });
 });
 
 /* ================= Avis clients : modération ================= */

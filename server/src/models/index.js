@@ -20,6 +20,8 @@ export const User = mongoose.model('User', new mongoose.Schema({
   active: { type: Boolean, default: true },
   savedFilters: [{ _id: false, name: String, query: Object }],
   vehicle: { label: String, plate: String, capacity: Number },
+  languages: [String],   // chauffeur : langues parlées
+  notes: String,         // chauffeur : remarques internes
   unavailableDates: [String],
 }, { timestamps: true }));
 
@@ -56,7 +58,7 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
     blocked: [String],
   },
   earlyBooking: { daysBefore: Number, percent: Number },
-  fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, TND: Number, updatedAt: Date },
+  fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, CAD: Number, TND: Number, updatedAt: Date },
   contact: { phone: String, whatsapp: String, viber: String, email: String, address: String, mapEmbed: String },
   social: { tripadvisor: String, facebook: String, instagram: String, tiktok: String, googleReviews: String,
     // Liens affichés dans « Suivez-nous » (pied de page), dans l'ordre choisi
@@ -102,6 +104,15 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
     video: String,                  // lien YouTube / Vimeo, ou vidéo MP4 envoyée (/uploads/….mp4)
     stats: [{ _id: false, value: String, label: L() }],   // chiffres clés (ex. « 10 ans » d'expérience)
   },
+}, { timestamps: true }));
+
+/** Véhicule de la flotte : choisi pour chaque prestation, indépendamment du chauffeur */
+export const FleetVehicle = mongoose.model('FleetVehicle', new mongoose.Schema({
+  label: { type: String, required: true },   // ex. Toyota Hiace
+  plate: String,                             // immatriculation
+  capacity: Number,                          // places passagers
+  notes: String,
+  active: { type: Boolean, default: true },
 }, { timestamps: true }));
 
 export const Post = mongoose.model('Post', new mongoose.Schema({

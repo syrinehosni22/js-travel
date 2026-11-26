@@ -33,6 +33,8 @@ function BookingDrawer({ id, onClose, onSaved }) {
   const canEdit = ['admin', 'manager'].includes(user.role);
   const confirm = useConfirm();
   const removeBooking = useDeleteBooking();
+  const { data: drivers } = useLoad(() => (canEdit ? adminApi.get('/drivers') : Promise.resolve([])), [canEdit]);
+  const { data: fleet } = useLoad(() => (canEdit ? adminApi.get('/fleet') : Promise.resolve([])), [canEdit]);
   const [cust, setCust] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -94,8 +96,27 @@ function BookingDrawer({ id, onClose, onSaved }) {
             ))}
             {i.cityTransferOnRequest && <span className="alert alert--warn" style={{ margin: 0 }}>Hôtel à {i.city} : déplacement sans prix configuré — à confirmer avec le client.</span>}
             {canEdit && (
-              <label className="lbl" style={{ maxWidth: 220 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
+              <div className="row" style={{ alignItems: 'flex-end', gap: 12 }}>
+                <label className="lbl" style={{ maxWidth: 200 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
+                <label className="lbl" style={{ flex: '1 1 220px' }}>Chauffeur
+                  <select className="inp" value={i.driver?._id || i.driver || ''} onChange={(e) => patch({ items: [{ _id: i._id, driver: e.target.value || null }] }, e.target.value ? 'Chauffeur affecté — pensez à « Envoyer la confirmation au client »' : 'Chauffeur retiré')}>
+                    <option value="">— Aucun chauffeur —</option>
+                    {(drivers || []).filter((d) => d.active || String(d._id) === String(i.driver?._id || i.driver)).map((d) => <option key={d._id} value={d._id}>{d.name}</option>)}
+                  </select>
+                </label>
+                <label className="lbl" style={{ flex: '1 1 220px' }}>Véhicule
+                  <select className="inp" value={i.vehicle?._id || i.vehicle || ''} onChange={(e) => patch({ items: [{ _id: i._id, vehicle: e.target.value || null }] }, e.target.value ? 'Véhicule choisi' : 'Véhicule retiré')}>
+                    <option value="">— Aucun véhicule —</option>
+                    {(fleet || []).filter((v) => v.active !== false || String(v._id) === String(i.vehicle?._id || i.vehicle)).map((v) => <option key={v._id} value={v._id}>{v.label}{v.plate ? ` · ${v.plate}` : ''}{v.capacity ? ` (${v.capacity} pl.)` : ''}</option>)}
+                  </select>
+                </label>
+              </div>
             )}
+            {i.vehicle?.label && <span className="muted">Véhicule : <b>{i.vehicle.label}</b>{i.vehicle.plate && ` · ${i.vehicle.plate}`}{i.vehicle.capacity && ` · ${i.vehicle.capacity} places`}{(i.vehicle.capacity && (i.participants?.adult || 0) + (i.participants?.child || 0) + (i.participants?.infant || 0) > i.vehicle.capacity) && <b style={{ color: '#9B1C1C' }}> — trop petit pour le groupe</b>}</span>}
+            {i.driver?.name && (
+              <span className="muted">Chauffeur : <b>{i.driver.name}</b> {i.driver.phone && <>· <a href={`tel:${i.driver.phone.replace(/[^\d+]/g, '')}`}>{i.driver.phone}</a> · <a href={`https://wa.me/${i.driver.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Mission ${b.ref}\n${i.title} — ${i.date} ${i.time || ''}\nClient : ${b.customer.name} · ${b.customer.phone || ''}\nHôtel : ${[b.customer.hotel, b.customer.city].filter(Boolean).join(', ')}${i.vehicle?.label ? `\nVéhicule : ${i.vehicle.label}${i.vehicle.plate ? ` (${i.vehicle.plate})` : ''}` : ''}`)}`} target="_blank" rel="noreferrer">envoyer la mission par WhatsApp</a></>}</span>
+            )}
+            {canEdit && ((drivers && drivers.length === 0) || (fleet && fleet.length === 0)) && <small className="muted">Ajoutez vos chauffeurs et vos véhicules dans le menu « Chauffeurs et véhicules ».</small>}
           </div>
         ))}
         <div className="panel row" style={{ justifyContent: 'space-between' }}><strong>Total à régler sur place</strong><strong>{eur(b.totalEur)}</strong></div>
@@ -118,7 +139,7 @@ function BookingDrawer({ id, onClose, onSaved }) {
             </div>
           )}
           <div className="row">
-            <button className="btn btn--outline btn-sm" onClick={() => adminApi.post(`/bookings/${id}/resend`).then(() => say('Bon renvoyé'))}>Renvoyer le bon</button>
+            <button className="btn btn--outline btn-sm" title="E-mail + WhatsApp au client, avec le bon PDF et le chauffeur s’il est choisi" onClick={() => adminApi.post(`/bookings/${id}/resend`).then((r) => say(r.mail?.ok === false ? `Confirmation non envoyée : ${r.mail.error}` : `Confirmation envoyée au client${r.drivers ? ' (avec le chauffeur)' : ''}`))}>Envoyer la confirmation au client</button>
             <a className="btn btn--outline btn-sm" href={`${API_URL}/api/bookings/${b.ref}/voucher.pdf?token=${b.token}`} target="_blank" rel="noreferrer">Voir le PDF</a>
           </div>
         </>}

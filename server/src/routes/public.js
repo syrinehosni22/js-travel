@@ -11,7 +11,7 @@ import { priceExcursionItem, transferQuotes, createBooking, checkAvailability, m
 import { notifyBookingCreated, notifyStatus, sendMail, teamEmail } from '../services/notify.js';
 import { voucherPdf } from '../services/voucher.js';
 import { antiSpam } from '../middleware.js';
-import { LANGS, config } from '../config.js';
+import { LANGS, config, CURRENCIES } from '../config.js';
 
 const r = Router();
 const lang = (req) => (LANGS.includes(req.query.lang) ? req.query.lang : 'en');
@@ -57,7 +57,7 @@ r.get('/settings', async (req, res) => {
   const l = lang(req);
   res.json({
     calendar: s.calendar, contact: s.contact, social: s.social, reviews: s.reviews,
-    cancellationHours: s.cancellationHours, fx: { EUR: 1, USD: s.fx?.USD, GBP: s.fx?.GBP, TND: s.fx?.TND },
+    cancellationHours: s.cancellationHours, fx: { EUR: 1, USD: s.fx?.USD, GBP: s.fx?.GBP, CAD: s.fx?.CAD, TND: s.fx?.TND },
     faq: (s.faq || []).map((f) => ({ q: pick(f.q, l), a: pick(f.a, l) })),
     seoHome: s.seoHome?.[l] || {},
     siteKeywords: String(s.siteKeywords?.[l] || '').split(',').map((k) => k.trim()).filter(Boolean),
@@ -179,7 +179,7 @@ const quoteSchema = z.object({
   participants: z.object({ adult: z.number().int().min(0).max(50), child: z.number().int().min(0).max(50).default(0), infant: z.number().int().min(0).max(50).default(0) }),
   zone: z.string().optional(), guideLang: z.string().optional(), options: z.array(z.string()).default([]),
   guide: z.boolean().optional(), city: z.string().max(80).optional(),
-  promoCode: z.string().optional(), partnerCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
+  promoCode: z.string().optional(), partnerCode: z.string().optional(), currency: z.enum(CURRENCIES).default('EUR'),
 });
 
 /** Devis serveur (le même calcul que le navigateur, avec code promo et disponibilité) */
@@ -235,7 +235,7 @@ const transferSchema = z.object({
   passengers: z.object({ adult: z.number().int().min(1).max(50), child: z.number().int().min(0).max(50).default(0), infant: z.number().int().min(0).max(50).default(0) }),
   luggage: z.number().int().min(0).default(0), childSeats: z.number().int().min(0).default(0), nameSign: z.boolean().default(false), extraStops: z.number().int().min(0).default(0),
   roundTrip: z.boolean().default(false), returnDatetime: z.string().optional(),
-  promoCode: z.string().optional(), currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'),
+  promoCode: z.string().optional(), currency: z.enum(CURRENCIES).default('EUR'),
 });
 
 r.post('/transfers/quote', async (req, res) => {
@@ -266,7 +266,7 @@ const bookingSchema = z.object({
   items: z.array(itemSchema).min(1).max(10),
   customer: z.object({ name: z.string().transform(cleanText).pipe(z.string().min(2).max(120)), email: z.string().trim().email(), phone: z.string().transform(cleanText).pipe(z.string().min(6).max(30)), hotel: z.string().max(120).transform(cleanText).optional(), city: z.string().max(80).transform(cleanText).optional(), nationality: z.string().trim().min(2).max(60), room: z.string().max(20).transform(cleanText).optional(), notes: z.string().max(2000).optional() }),
   promoCode: z.string().optional(), partnerCode: z.string().optional(),
-  currency: z.enum(['EUR', 'USD', 'GBP', 'TND']).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
+  currency: z.enum(CURRENCIES).default('EUR'), lang: z.enum(['en', 'fr', 'de', 'it', 'es']).default('en'),
   consent: z.object({ terms: z.boolean(), cancellation: z.literal(true) }),
   captchaToken: z.string().optional(), website: z.string().optional(),
 }).superRefine((b, ctx) => {

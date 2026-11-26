@@ -31,6 +31,7 @@ const ItemSchema = new mongoose.Schema({
   totalEur: Number,
   // Opérations
   driver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+  vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'FleetVehicle' },   // véhicule de la flotte choisi pour la prestation
   vehiclePlate: String,
 });
 

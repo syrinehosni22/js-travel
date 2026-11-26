@@ -4,6 +4,7 @@ import { config } from '../config.js';
 import { t } from './i18n.js';
 import { voucherPdf } from './voucher.js';
 import { getSettings } from './settings.js';
+import { driversFor, staffLine } from './drivers.js';
 
 const transport = config.smtp.host
   ? nodemailer.createTransport({
@@ -148,12 +149,15 @@ export async function notifyAdminWhatsApp(text) {
 }
 
 /** Texte d'une réservation (alerte équipe et bouton « Envoyer via WhatsApp » de l'admin) */
-export function bookingText(b) {
+export function bookingText(b, drivers = new Map()) {
   const c = b.customer || {};
   const p = (x) => [x?.adult && `${x.adult} ad.`, x?.child && `${x.child} enf.`, x?.infant && `${x.infant} bébé`].filter(Boolean).join(' + ');
   const extras = (i) => (i.lines || []).filter((l) => ['option', 'guide', 'cityTransfer'].includes(l.key))
     .map((l) => (l.key === 'guide' ? 'guide' : l.key === 'cityTransfer' ? `déplacement depuis ${l.label}` : l.label)).join(', ');
-  const items = (b.items || []).map((i) => `• ${i.title} — ${i.date || ''}${i.time ? ` ${i.time}` : ''} — ${p(i.participants)}${extras(i) ? ` — ${extras(i)}` : ''} — ${formatMoney(i.totalEur || 0, 'EUR', 'fr')}`).join('\n');
+  const items = (b.items || []).map((i) => {
+    const staff = staffLine(i, drivers, 'fr');
+    return `• ${i.title} — ${i.date || ''}${i.time ? ` ${i.time}` : ''} — ${p(i.participants)}${extras(i) ? ` — ${extras(i)}` : ''} — ${formatMoney(i.totalEur || 0, 'EUR', 'fr')}${staff ? `\n  ${staff}` : ''}`;
+  }).join('\n');
   return [
     `Nouvelle réservation ${b.ref}`,
     `Client : ${c.name || ''} · ${c.phone || ''}${c.nationality ? ` · ${c.nationality}` : ''}`,
@@ -173,11 +177,12 @@ function layout(title, body) {
   <div style="background:#fff;border:1px solid #E7E1D3;border-top:0;padding:24px;border-radius:0 0 12px 12px">${body}<p style="margin:24px 0 0;font-size:12px;color:#666">JS Travel Tunisia · <a href="${config.siteUrl}" style="color:#666">${config.siteUrl.replace(/^https?:\/\//, '')}</a></p></div></div></body></html>`;
 }
 
-function summary(b) {
+function summary(b, drivers = new Map()) {
   const L = b.lang;
+  const drv = (i) => { const line = staffLine(i, drivers, L); return line ? `<br><small><b>${line}</b></small>` : ''; };
   const extras = (i) => (i.lines || []).filter((l) => ['option', 'guide', 'cityTransfer'].includes(l.key))
     .map((l) => (l.key === 'guide' ? t(L, 'guide') : l.key === 'cityTransfer' ? `${t(L, 'transferFrom')} ${l.label}` : `${l.label}${l.qty > 1 ? ` × ${l.qty}` : ''}`)).join(', ');
-  const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small>${extras(i) ? `<br><small>${t(L, 'extras')} : ${extras(i)}</small>` : ''}</td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
+  const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small>${extras(i) ? `<br><small>${t(L, 'extras')} : ${extras(i)}</small>` : ''}${drv(i)}</td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
   return `<table style="width:100%;border-collapse:collapse">${rows}<tr><td style="padding-top:10px;font-weight:bold">${t(L, 'total')}</td><td style="text-align:right;font-weight:bold">${formatMoney(b.totalEur, 'EUR', L)} ${t(L, 'ttc')}</td></tr></table>`;
 }
 
@@ -186,6 +191,7 @@ export async function notifyBookingCreated(b) {
   const s = await getSettings();
   const confirmed = b.status === 'confirmed';
   const pdf = confirmed ? await voucherPdf(b, { contact: s.contact }).catch(() => null) : null;
+  const drivers = await driversFor(b).catch(() => new Map());
   // Chaque envoi est indépendant : un échec (client sans e-mail, WhatsApp non configuré…) n'empêche pas les autres
   const safe = (p) => p.catch((e) => console.error('[notification]', e.message));
   // Équipe d'abord : e-mail avec tout le détail + lien vers l'admin (§7.3)
@@ -209,7 +215,7 @@ export async function notifyBookingCreated(b) {
     subject: `${confirmed ? t(L, 'confirmed') : t(L, 'received')} · ${b.ref}`,
     html: layout(confirmed ? t(L, 'confirmed') : t(L, 'received'),
       `<p>${t(L, 'hello')} ${c.name},</p>${confirmed ? '' : `<p>${t(L, 'pending')}</p>`}
-       <p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b)}<p>${t(L, 'payOnSite')}</p>
+       <p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b, drivers)}<p>${t(L, 'payOnSite')}</p>
        <p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   }));
@@ -221,13 +227,17 @@ export async function notifyStatus(b, kind) {
   const s = await getSettings();
   const titles = { confirmed: t(L, 'confirmed'), cancelled: t(L, 'cancelled'), reminder: t(L, 'reminder') };
   if (!titles[kind]) return;
-  const pdf = ['confirmed', 'reminder'].includes(kind) ? await voucherPdf(b, { contact: s.contact }) : null;
-  await sendMail({
+  const pdf = ['confirmed', 'reminder'].includes(kind) ? await voucherPdf(b, { contact: s.contact }).catch(() => null) : null;
+  // Chauffeur choisi : son nom, son téléphone et son véhicule figurent dans la confirmation et le rappel
+  const drivers = kind === 'cancelled' ? new Map() : await driversFor(b);
+  const driverText = [...new Set((b.items || []).map((i) => staffLine(i, drivers, L)).filter(Boolean))].join('\n');
+  const mail = await sendMail({
     to: b.customer.email, subject: `${titles[kind]} · ${b.ref}`,
-    html: layout(titles[kind], `<p>${t(L, 'hello')} ${b.customer.name},</p><p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b)}<p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
+    html: layout(titles[kind], `<p>${t(L, 'hello')} ${b.customer.name},</p><p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b, drivers)}<p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   });
-  await sendWhatsApp(b.customer.phone, `${titles[kind]} · ${b.ref}\n${manageUrl(b)}`, { lang: L });
+  const wa = await sendWhatsApp(b.customer.phone, `${titles[kind]} · ${b.ref}${driverText ? `\n${driverText}` : ''}\n${manageUrl(b)}`, { lang: L });
+  return { mail, whatsapp: wa, drivers: [...drivers.keys()].filter((k) => !k.startsWith('v:')).length };
 }
 
 export async function requestReview(b) {
@@ -239,7 +249,13 @@ export async function requestReview(b) {
 }
 
 /** Feuille de route quotidienne du chauffeur (§7.3) */
-export async function sendDriverRoadmap(driver, items) {
-  const lines = items.map((i) => `${i.time || ''} · ${i.title} · ${i.customer} · ${i.hotel || i.transfer?.from || ''} · ${i.phone || ''}`).join('\n');
-  await sendWhatsApp(driver.phone, `Feuille de route\n${lines || 'Aucune prestation'}`, { lang: 'fr' });
+/** Texte de la feuille de route d'un chauffeur pour une date */
+export function roadmapText(driver, date, items) {
+  const lines = items.map((i) => `• ${i.time || '--:--'} · ${i.title} · ${i.customer || ''}${i.pax ? ` (${i.pax} pers.)` : ''} · ${i.hotel || i.transfer?.from || ''}${i.transfer?.to ? ` → ${i.transfer.to}` : ''}${i.phone ? ` · ${i.phone}` : ''}${i.vehicle ? ` · véhicule : ${i.vehicle}` : ''}`).join('\n');
+  return `Feuille de route ${date} — ${driver.name || ''}\n${lines || 'Aucune prestation'}`;
+}
+
+/** Envoie la feuille de route par WhatsApp ; renvoie { ok, error } */
+export async function sendDriverRoadmap(driver, items, date = '') {
+  return sendWhatsApp(driver.phone, roadmapText(driver, date, items), { lang: 'fr' });
 }
