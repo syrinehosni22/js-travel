@@ -33,6 +33,7 @@ function BookingDrawer({ id, onClose, onSaved }) {
   const canEdit = ['admin', 'manager'].includes(user.role);
   const confirm = useConfirm();
   const removeBooking = useDeleteBooking();
+  const { data: drivers } = useLoad(() => (canEdit ? adminApi.get('/drivers') : Promise.resolve([])), [canEdit]);
   const [cust, setCust] = useState(null);
   const [err, setErr] = useState(null);
 
@@ -94,8 +95,20 @@ function BookingDrawer({ id, onClose, onSaved }) {
             ))}
             {i.cityTransferOnRequest && <span className="alert alert--warn" style={{ margin: 0 }}>Hôtel à {i.city} : déplacement sans prix configuré — à confirmer avec le client.</span>}
             {canEdit && (
-              <label className="lbl" style={{ maxWidth: 220 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
+              <div className="row" style={{ alignItems: 'flex-end', gap: 12 }}>
+                <label className="lbl" style={{ maxWidth: 200 }}>Date<input className="inp" type="date" defaultValue={i.date} onBlur={(e) => e.target.value !== i.date && patch({ items: [{ _id: i._id, date: e.target.value }] })} /></label>
+                <label className="lbl" style={{ flex: '1 1 220px' }}>Chauffeur
+                  <select className="inp" value={i.driver?._id || i.driver || ''} onChange={(e) => patch({ items: [{ _id: i._id, driver: e.target.value || null }] }, e.target.value ? 'Chauffeur affecté — pensez à « Envoyer la confirmation au client »' : 'Chauffeur retiré')}>
+                    <option value="">— Aucun chauffeur —</option>
+                    {(drivers || []).filter((d) => d.active || String(d._id) === String(i.driver?._id || i.driver)).map((d) => <option key={d._id} value={d._id}>{d.name}{d.vehicle?.label ? ` · ${d.vehicle.label}` : ''}{d.vehicle?.capacity ? ` (${d.vehicle.capacity} pl.)` : ''}</option>)}
+                  </select>
+                </label>
+              </div>
             )}
+            {i.driver?.name && (
+              <span className="muted">Chauffeur : <b>{i.driver.name}</b> {i.driver.phone && <>· <a href={`tel:${i.driver.phone.replace(/[^\d+]/g, '')}`}>{i.driver.phone}</a> · <a href={`https://wa.me/${i.driver.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Mission ${b.ref}\n${i.title} — ${i.date} ${i.time || ''}\nClient : ${b.customer.name} · ${b.customer.phone || ''}\nHôtel : ${[b.customer.hotel, b.customer.city].filter(Boolean).join(', ')}`)}`} target="_blank" rel="noreferrer">envoyer la mission par WhatsApp</a></>}</span>
+            )}
+            {canEdit && drivers && drivers.length === 0 && <small className="muted">Aucun chauffeur : créez-en dans le menu « Chauffeurs ».</small>}
           </div>
         ))}
         <div className="panel row" style={{ justifyContent: 'space-between' }}><strong>Total à régler sur place</strong><strong>{eur(b.totalEur)}</strong></div>
@@ -118,7 +131,7 @@ function BookingDrawer({ id, onClose, onSaved }) {
             </div>
           )}
           <div className="row">
-            <button className="btn btn--outline btn-sm" onClick={() => adminApi.post(`/bookings/${id}/resend`).then(() => say('Bon renvoyé'))}>Renvoyer le bon</button>
+            <button className="btn btn--outline btn-sm" title="E-mail + WhatsApp au client, avec le bon PDF et le chauffeur s’il est choisi" onClick={() => adminApi.post(`/bookings/${id}/resend`).then((r) => say(r.mail?.ok === false ? `Confirmation non envoyée : ${r.mail.error}` : `Confirmation envoyée au client${r.drivers ? ' (avec le chauffeur)' : ''}`))}>Envoyer la confirmation au client</button>
             <a className="btn btn--outline btn-sm" href={`${API_URL}/api/bookings/${b.ref}/voucher.pdf?token=${b.token}`} target="_blank" rel="noreferrer">Voir le PDF</a>
           </div>
         </>}

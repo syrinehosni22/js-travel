@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { adminApi } from '../api.js';
 import { useAdmin } from './AdminApp.jsx';
-import { useLoad, Top, Status, useToast } from './shared.jsx';
+import { useLoad, Top, Status, useToast, useConfirm } from './shared.jsx';
 
 const iso = (d) => d.toISOString().slice(0, 10);
 
@@ -17,6 +17,19 @@ export default function Planning() {
   const { data, reload } = useLoad(() => adminApi.get(`/planning?from=${start}&to=${end}`), [start, end]);
   const [toast, say] = useToast();
   const isDriver = user.role === 'driver';
+  const confirm = useConfirm();
+  const [sent, setSent] = useState(null);   // résultat de l'envoi des feuilles de route
+  const dateLabel = (d) => new Date(d + 'T12:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  async function sendRoadmaps() {
+    const ok = await confirm({
+      title: `Envoyer les feuilles de route du ${dateLabel(start)} ?`,
+      message: 'Chaque chauffeur qui a au moins une prestation ce jour-là reçoit sur WhatsApp la liste de ses prestations : heure, excursion ou trajet, client, nombre de personnes, hôtel et téléphone du client.',
+      confirmLabel: 'Envoyer', danger: false,
+    });
+    if (!ok) return;
+    setSent({ busy: true });
+    try { setSent(await adminApi.post('/planning/roadmaps', { date: start })); } catch (x) { setSent({ error: x.message }); }
+  }
 
   async function assign(row, driverId) {
     await adminApi.patch(`/bookings/${row._id}`, { items: [{ _id: row.item._id, driver: driverId || null }] });
@@ -37,8 +50,34 @@ export default function Planning() {
         <button className="btn btn--outline btn-sm" onClick={() => shift(view === 'day' ? -1 : -7)}>‹</button>
         <input className="inp" type="date" value={start} onChange={(e) => setStart(e.target.value)} aria-label="Date de début" />
         <button className="btn btn--outline btn-sm" onClick={() => shift(view === 'day' ? 1 : 7)}>›</button>
-        {!isDriver && <button className="btn btn--green btn-sm" onClick={() => adminApi.post('/planning/roadmaps', { date: start }).then((r) => say(`Feuilles de route envoyées (${r.sent})`))}>Envoyer les feuilles de route WhatsApp</button>}
+        {!isDriver && <button className="btn btn--green btn-sm" disabled={sent?.busy} onClick={sendRoadmaps}>{sent?.busy ? 'Envoi…' : 'Envoyer les feuilles de route WhatsApp'}</button>}
       </Top>
+
+      {!isDriver && (
+        <details className="panel" style={{ marginBottom: 16 }}>
+          <summary style={{ cursor: 'pointer', fontWeight: 600 }}>Comment utiliser « Envoyer les feuilles de route WhatsApp » ?</summary>
+          <ol style={{ margin: '10px 0 0', paddingLeft: 20, lineHeight: 1.7 }}>
+            <li>Créez vos chauffeurs dans le menu <b>Chauffeurs</b> (nom et numéro WhatsApp).</li>
+            <li>Choisissez le <b>jour</b> avec le calendrier ci-dessus (souvent la veille au soir : la date de demain).</li>
+            <li>Affectez un chauffeur à chaque prestation : liste « Chauffeur » dans le tableau, ou glissez la ligne sur la carte du chauffeur.</li>
+            <li>Cliquez sur <b>Envoyer les feuilles de route WhatsApp</b> : chaque chauffeur qui a des prestations ce jour-là reçoit un message avec l’heure, l’excursion ou le trajet, le client, le nombre de personnes, l’hôtel et le téléphone du client.</li>
+            <li>Le résultat s’affiche ici. Si l’envoi automatique échoue (WhatsApp de l’API non configuré, numéro non autorisé…), un bouton <b>Ouvrir WhatsApp</b> prépare le message pour l’envoyer vous-même.</li>
+          </ol>
+        </details>
+      )}
+
+      {sent && !sent.busy && (
+        <div className="panel stack" style={{ marginBottom: 16, gap: 8 }} role="status">
+          {sent.error && <p className="alert alert--warn" style={{ margin: 0 }}>Échec : {sent.error}</p>}
+          {sent.results && sent.results.length === 0 && <p className="alert alert--warn" style={{ margin: 0 }}>Aucun chauffeur n’a de prestation le {dateLabel(sent.date)}. Affectez d’abord les chauffeurs aux prestations.</p>}
+          {sent.results?.map((r) => (
+            <div key={r.driver} className="row" style={{ justifyContent: 'space-between' }}>
+              <span>{r.ok ? '✓' : '✗'} <b>{r.driver}</b> · {r.count} prestation(s) · {r.ok ? 'envoyée par WhatsApp' : `non envoyée — ${r.error || 'erreur'}`}</span>
+              {!r.ok && r.phone && <a className="btn btn--whatsapp btn-sm" href={`https://wa.me/${r.phone.replace(/\D/g, '')}?text=${encodeURIComponent(r.text)}`} target="_blank" rel="noreferrer">Ouvrir WhatsApp</a>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {!isDriver && drivers.length > 0 && (
         <div className="row" style={{ marginBottom: 16 }}>

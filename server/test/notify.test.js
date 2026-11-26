@@ -42,3 +42,19 @@ test('e-mails : version texte et adresse du site suspecte', async () => {
   assert.equal(siteUrlProblem('http://localhost:5173'), 'localhost');
   assert.equal(siteUrlProblem('http://jstraveltrip.com'), 'http');
 });
+
+test('chauffeur dans la confirmation et la feuille de route', async () => {
+  const { driverLine, driverOf } = await import('../src/services/drivers.js');
+  const { bookingText, roadmapText } = await import('../src/services/notify.js');
+  const ali = { _id: 'd1', name: 'Ali', phone: '+216 20 111 222', vehicle: { label: 'Toyota Hiace', plate: '123 TU 4567' } };
+  assert.equal(driverLine(ali, 'fr'), 'Chauffeur : Ali · +216 20 111 222 · Toyota Hiace (123 TU 4567)');
+  assert.equal(driverLine(ali, 'en'), 'Driver : Ali · +216 20 111 222 · Toyota Hiace (123 TU 4567)');
+  assert.equal(driverOf({ driver: 'd1' }, new Map([['d1', ali]])).name, 'Ali');
+  assert.equal(driverOf({ driver: ali }).name, 'Ali');
+  assert.equal(driverOf({}), null);
+  const txt = bookingText({ ref: 'X', totalEur: 50, customer: { name: 'Amel' }, items: [{ title: 'Carthage', date: '2026-12-01', totalEur: 50, driver: ali }] });
+  assert.ok(txt.includes('Chauffeur : Ali · +216 20 111 222'), txt);
+  const rm = roadmapText(ali, '2026-12-01', [{ time: '08:00', title: 'Carthage', customer: 'Amel', pax: 3, hotel: 'Marhaba', phone: '+216 55' }]);
+  assert.ok(rm.startsWith('Feuille de route 2026-12-01 — Ali'), rm);
+  assert.ok(rm.includes('08:00 · Carthage · Amel (3 pers.) · Marhaba · +216 55'), rm);
+});

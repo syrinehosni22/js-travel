@@ -689,3 +689,13 @@ button, input, select { font: inherit; color: inherit; }
 
 /* Bouton « Voir tous les avis » sous la liste */
 .review-more { display: flex; justify-content: center; margin-top: 24px; }
+
+/* Téléphone et e-mail cliquables (appel / nouvel e-mail) */
+.contact-link { display: inline-flex; align-items: center; gap: 8px; min-height: 32px; text-decoration: underline; text-underline-offset: 3px; }
+.contact-link svg { flex: none; }
+
+/* Note des avis : « 4,7 ★★★★★ 9 avis » */
+.review-score { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
+.review-score .stars-meter { align-self: center; }
+.review-score .stars-meter > .stars-row { color: rgba(255,255,255,.22) !important; }
+.review-score__count { font-size: .55em; font-family: var(--font); font-weight: 600; opacity: .85; }

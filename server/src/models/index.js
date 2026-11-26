@@ -20,6 +20,8 @@ export const User = mongoose.model('User', new mongoose.Schema({
   active: { type: Boolean, default: true },
   savedFilters: [{ _id: false, name: String, query: Object }],
   vehicle: { label: String, plate: String, capacity: Number },
+  languages: [String],   // chauffeur : langues parlées
+  notes: String,         // chauffeur : remarques internes
   unavailableDates: [String],
 }, { timestamps: true }));
 
@@ -56,7 +58,7 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
     blocked: [String],
   },
   earlyBooking: { daysBefore: Number, percent: Number },
-  fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, TND: Number, updatedAt: Date },
+  fx: { mode: { type: String, default: 'auto' }, USD: Number, GBP: Number, CAD: Number, TND: Number, updatedAt: Date },
   contact: { phone: String, whatsapp: String, viber: String, email: String, address: String, mapEmbed: String },
   social: { tripadvisor: String, facebook: String, instagram: String, tiktok: String, googleReviews: String,
     // Liens affichés dans « Suivez-nous » (pied de page), dans l'ordre choisi

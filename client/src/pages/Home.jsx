@@ -13,6 +13,7 @@ import { DEFAULT_SLIDES, DEFAULT_DESTINATIONS, BANNER_TARGETS } from '../homeDef
 import { PHOTOS } from '../images.js';
 import PopularSearches from '../components/PopularSearches.jsx';
 import { SiteReviewList, useSiteReviews, openSiteReview } from '../components/SiteReviews.jsx';
+import { Stars } from '../components/Reviews.jsx';
 
 function Hero() {
   const { t } = useTranslation();
@@ -187,7 +188,11 @@ export default function Home() {
       <section className="section section--dark">
         <div className="container">
           <div className="section__head">
-            <div><span className="eyebrow">{t('home.reviews')}</span><h2 className="section__title">{shownRating?.rating ? `${shownRating.rating} / 5 · ${shownRating.count}` : t('home.reviews')}</h2></div>
+            <div><span className="eyebrow">{t('home.reviews')}</span><h2 className="section__title review-score">{shownRating?.rating ? (<>
+              <span>{Number(shownRating.rating).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+              <Stars value={+shownRating.rating} size={26} label={`${shownRating.rating} / 5`} />
+              <span className="review-score__count">{t('rev.count', { count: +shownRating.count || 0 })}</span>
+            </>) : t('home.reviews')}</h2></div>
             <div className="review-links">
               <button type="button" className="btn btn--gold-outline" onClick={openSiteReview}>{t('rev.leaveSite')}</button>
               {settings?.social?.tripadvisor && <a href={settings.social.tripadvisor} target="_blank" rel="noopener noreferrer">{t('home.readAll')}</a>}

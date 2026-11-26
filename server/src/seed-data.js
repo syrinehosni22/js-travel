@@ -345,7 +345,7 @@ export async function runSeed({ reset = false, create = true, log = console.log 
         holidays: [], blocked: [],
       },
       earlyBooking: { daysBefore: 30, percent: 5 },
-      fx: { mode: 'auto', USD: 1.08, GBP: 0.85, TND: 3.4 },
+      fx: { mode: 'auto', USD: 1.08, GBP: 0.85, CAD: 1.5, TND: 3.4 },
       contact: { phone: '[TÉLÉPHONE]', whatsapp: '[NUMÉRO WHATSAPP]', email: '[E-MAIL]', address: '[ADRESSE]' },
       social: { tripadvisor: '', facebook: '', instagram: '', tiktok: '', googleReviews: '' },
       cancellationHours: 24,

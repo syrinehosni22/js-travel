@@ -32,4 +32,4 @@ export const config = {
 
 export const LANGS = ['en', 'fr', 'de', 'it', 'es'];
 export const DEFAULT_LANG = 'en';
-export const CURRENCIES = ['EUR', 'USD', 'GBP', 'TND'];
+export const CURRENCIES = ['EUR', 'USD', 'GBP', 'CAD', 'TND'];

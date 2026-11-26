@@ -6,6 +6,7 @@ import { LANGS, PATHS, path, langName } from '../i18n.js';
 import { Icon, Logo, BRAND } from './ui.jsx';
 import { PHOTOS } from '../images.js';
 import { waLink } from '../whatsapp.js';
+import { telHref, mailHref } from '../lib/contact.js';
 import { SiteReviewDialog, openSiteReview } from './SiteReviews.jsx';
 import { SOCIAL_NAMES } from '../social.js';
 
@@ -45,7 +46,7 @@ function Header() {
               </label>
               <label>{t('common.currency')}
                 <select className="lang-select" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-                  <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
+                  <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="CAD">$ CAD</option><option value="TND">DT TND</option>
                 </select>
               </label>
             </li>
@@ -58,7 +59,7 @@ function Header() {
           </select>
           <label className="visually-hidden" htmlFor="cur">{t('common.currency')}</label>
           <select id="cur" className="lang-select desk-only" value={currency} onChange={(e) => setCurrency(e.target.value)}>
-            <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="TND">DT TND</option>
+            <option value="EUR">€ EUR</option><option value="USD">$ USD</option><option value="GBP">£ GBP</option><option value="CAD">$ CAD</option><option value="TND">DT TND</option>
           </select>
           <Link to={path(lang, 'cart')} className="lang-select" style={{ display: 'flex', alignItems: 'center', gap: 6, textDecoration: 'none', color: 'inherit' }} aria-label={`${t('nav.cart')} (${cart.length})`}>
             <Icon name="bag" /> {cart.length > 0 && <span className="tag">{cart.length}</span>}
@@ -92,7 +93,7 @@ function Footer() {
           </div>
         </div>
         <div className="footer__cols">
-          <div><Link to={`/${lang}`} className="logo logo--light" aria-label="JS Travel Tunisia"><Logo light /></Link><br />{c.address}<br />{c.phone}<br />{c.email}</div>
+          <div><Link to={`/${lang}`} className="logo logo--light" aria-label="JS Travel Tunisia"><Logo light /></Link><br />{c.address}{c.address && <br />}{telHref(c.phone) && <><a className="contact-link" href={telHref(c.phone)}><Icon name="phone" size={16} />{c.phone}</a><br /></>}{mailHref(c.email) && <a className="contact-link" href={mailHref(c.email, 'JS Travel Tunisia')}><Icon name="mail" size={16} />{c.email}</a>}</div>
           <div><h3>{t('footer.destinations')}</h3><ul>
             {['desert', 'culture', 'sea', 'family'].map((k) => <li key={k}><Link to={`${path(lang, 'excursions')}?category=${k}`}>{t(`cat.${k}`)}</Link></li>)}
           </ul></div>

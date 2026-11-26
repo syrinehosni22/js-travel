@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { api } from '../api.js';
 import { useApp } from '../context.jsx';
 import { LANGS, path } from '../i18n.js';
-import { Seo, ErrorBox, Media } from '../components/ui.jsx';
+import { Seo, ErrorBox, Media, Icon } from '../components/ui.jsx';
+import { telHref, mailHref } from '../lib/contact.js';
 import { waLink } from '../whatsapp.js';
 
 /** Contact (§2) et demande « Sur mesure » / devis (§3.1 mode « sur devis ») */
@@ -57,8 +58,8 @@ export default function Contact({ custom }) {
         <aside className="card stack">
           <h2 style={{ fontSize: 20 }}>{t('contact.details')}</h2>
           {c.address && <p>{c.address}</p>}
-          {c.phone && <a href={`tel:${c.phone}`}>{c.phone}</a>}
-          {c.email && <a href={`mailto:${c.email}`}>{c.email}</a>}
+          {telHref(c.phone) && <a className="contact-link" href={telHref(c.phone)}><Icon name="phone" size={18} />{c.phone}</a>}
+          {mailHref(c.email) && <a className="contact-link" href={mailHref(c.email, 'JS Travel Tunisia')}><Icon name="mail" size={18} />{c.email}</a>}
           {waLink(c.whatsapp) && <a className="btn btn--whatsapp" href={waLink(c.whatsapp)} target="_blank" rel="noopener noreferrer">WhatsApp</a>}
           {c.mapEmbed && <iframe title={t('common.map')} src={c.mapEmbed} style={{ width: '100%', height: 260, border: 0, borderRadius: 14 }} loading="lazy" />}
         </aside>
