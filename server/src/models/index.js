@@ -106,6 +106,15 @@ export const Settings = mongoose.model('Settings', new mongoose.Schema({
   },
 }, { timestamps: true }));
 
+/** Véhicule de la flotte : choisi pour chaque prestation, indépendamment du chauffeur */
+export const FleetVehicle = mongoose.model('FleetVehicle', new mongoose.Schema({
+  label: { type: String, required: true },   // ex. Toyota Hiace
+  plate: String,                             // immatriculation
+  capacity: Number,                          // places passagers
+  notes: String,
+  active: { type: Boolean, default: true },
+}, { timestamps: true }));
+
 export const Post = mongoose.model('Post', new mongoose.Schema({
   slug: L(), title: L(), excerpt: L(), body: L(),
   category: String, image: String, imageAlt: L(),

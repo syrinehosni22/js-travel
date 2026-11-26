@@ -4,7 +4,7 @@ import { config } from '../config.js';
 import { t } from './i18n.js';
 import { voucherPdf } from './voucher.js';
 import { getSettings } from './settings.js';
-import { driversFor, driverOf, driverLine } from './drivers.js';
+import { driversFor, staffLine } from './drivers.js';
 
 const transport = config.smtp.host
   ? nodemailer.createTransport({
@@ -155,8 +155,8 @@ export function bookingText(b, drivers = new Map()) {
   const extras = (i) => (i.lines || []).filter((l) => ['option', 'guide', 'cityTransfer'].includes(l.key))
     .map((l) => (l.key === 'guide' ? 'guide' : l.key === 'cityTransfer' ? `déplacement depuis ${l.label}` : l.label)).join(', ');
   const items = (b.items || []).map((i) => {
-    const d = driverOf(i, drivers);
-    return `• ${i.title} — ${i.date || ''}${i.time ? ` ${i.time}` : ''} — ${p(i.participants)}${extras(i) ? ` — ${extras(i)}` : ''} — ${formatMoney(i.totalEur || 0, 'EUR', 'fr')}${d ? `\n  ${driverLine(d, 'fr')}` : ''}`;
+    const staff = staffLine(i, drivers, 'fr');
+    return `• ${i.title} — ${i.date || ''}${i.time ? ` ${i.time}` : ''} — ${p(i.participants)}${extras(i) ? ` — ${extras(i)}` : ''} — ${formatMoney(i.totalEur || 0, 'EUR', 'fr')}${staff ? `\n  ${staff}` : ''}`;
   }).join('\n');
   return [
     `Nouvelle réservation ${b.ref}`,
@@ -179,7 +179,7 @@ function layout(title, body) {
 
 function summary(b, drivers = new Map()) {
   const L = b.lang;
-  const drv = (i) => { const d = driverOf(i, drivers); return d ? `<br><small><b>${driverLine(d, L)}</b></small>` : ''; };
+  const drv = (i) => { const line = staffLine(i, drivers, L); return line ? `<br><small><b>${line}</b></small>` : ''; };
   const extras = (i) => (i.lines || []).filter((l) => ['option', 'guide', 'cityTransfer'].includes(l.key))
     .map((l) => (l.key === 'guide' ? t(L, 'guide') : l.key === 'cityTransfer' ? `${t(L, 'transferFrom')} ${l.label}` : `${l.label}${l.qty > 1 ? ` × ${l.qty}` : ''}`)).join(', ');
   const rows = b.items.map((i) => `<tr><td style="padding:6px 0">${i.title}<br><small>${i.date} ${i.time || ''}</small>${extras(i) ? `<br><small>${t(L, 'extras')} : ${extras(i)}</small>` : ''}${drv(i)}</td><td style="text-align:right">${formatMoney(i.totalEur, 'EUR', L)}</td></tr>`).join('');
@@ -230,15 +230,14 @@ export async function notifyStatus(b, kind) {
   const pdf = ['confirmed', 'reminder'].includes(kind) ? await voucherPdf(b, { contact: s.contact }).catch(() => null) : null;
   // Chauffeur choisi : son nom, son téléphone et son véhicule figurent dans la confirmation et le rappel
   const drivers = kind === 'cancelled' ? new Map() : await driversFor(b);
-  const driverText = (b.items || []).map((i) => driverOf(i, drivers)).filter(Boolean)
-    .filter((d, k, a) => a.findIndex((x) => String(x._id) === String(d._id)) === k).map((d) => driverLine(d, L)).join('\n');
+  const driverText = [...new Set((b.items || []).map((i) => staffLine(i, drivers, L)).filter(Boolean))].join('\n');
   const mail = await sendMail({
     to: b.customer.email, subject: `${titles[kind]} · ${b.ref}`,
     html: layout(titles[kind], `<p>${t(L, 'hello')} ${b.customer.name},</p><p><b>${t(L, 'ref')} :</b> ${b.ref}</p>${summary(b, drivers)}<p><a href="${manageUrl(b)}">${t(L, 'manage')}</a></p>`),
     attachments: pdf ? [{ filename: `${b.ref}.pdf`, content: pdf }] : undefined,
   });
   const wa = await sendWhatsApp(b.customer.phone, `${titles[kind]} · ${b.ref}${driverText ? `\n${driverText}` : ''}\n${manageUrl(b)}`, { lang: L });
-  return { mail, whatsapp: wa, drivers: drivers.size };
+  return { mail, whatsapp: wa, drivers: [...drivers.keys()].filter((k) => !k.startsWith('v:')).length };
 }
 
 export async function requestReview(b) {
@@ -252,7 +251,7 @@ export async function requestReview(b) {
 /** Feuille de route quotidienne du chauffeur (§7.3) */
 /** Texte de la feuille de route d'un chauffeur pour une date */
 export function roadmapText(driver, date, items) {
-  const lines = items.map((i) => `• ${i.time || '--:--'} · ${i.title} · ${i.customer || ''}${i.pax ? ` (${i.pax} pers.)` : ''} · ${i.hotel || i.transfer?.from || ''}${i.transfer?.to ? ` → ${i.transfer.to}` : ''}${i.phone ? ` · ${i.phone}` : ''}`).join('\n');
+  const lines = items.map((i) => `• ${i.time || '--:--'} · ${i.title} · ${i.customer || ''}${i.pax ? ` (${i.pax} pers.)` : ''} · ${i.hotel || i.transfer?.from || ''}${i.transfer?.to ? ` → ${i.transfer.to}` : ''}${i.phone ? ` · ${i.phone}` : ''}${i.vehicle ? ` · véhicule : ${i.vehicle}` : ''}`).join('\n');
   return `Feuille de route ${date} — ${driver.name || ''}\n${lines || 'Aucune prestation'}`;
 }
 
