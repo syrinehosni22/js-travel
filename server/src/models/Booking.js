@@ -29,6 +29,7 @@ const ItemSchema = new mongoose.Schema({
   season: String,
   lines: [PriceLine],
   totalEur: Number,
+  basePriceEur: Number,   // prix avant remise ou prix manuel saisi dans l'admin
   // Opérations
   driver: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
   vehicle: { type: mongoose.Schema.Types.ObjectId, ref: 'FleetVehicle' },   // véhicule de la flotte choisi pour la prestation

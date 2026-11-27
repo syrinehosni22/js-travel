@@ -15,6 +15,7 @@ import { slugify, seoErrors, seoOverview, seoScore } from '../services/seo.js';
 import { followsTitle, firstFreeSlug } from '../lib/slugs.js';
 import { byDisplayOrder } from '../lib/order.js';
 import { commissionRows, PAID_STATUSES } from '../lib/commission.js';
+import { applyItemPrice, applyTotal } from '../lib/adjust.js';
 import { commissionWorkbook } from '../services/commission.js';
 import { seoSummary } from '../services/seoSummary.js';
 import { cleanText } from '../services/text.js';
@@ -140,19 +141,37 @@ r.patch('/bookings/:id', allow('manager'), async (req, res) => {
     status: z.enum(STATUS).optional(),
     collectedAmount: z.number().optional(), collectedCurrency: z.string().optional(),
     customer: z.object({ name: z.string(), email: z.string().email(), phone: z.string(), hotel: z.string().optional(), city: z.string().optional(), nationality: z.string().optional(), room: z.string().optional(), notes: z.string().optional() }).partial().optional(),
-    items: z.array(z.object({ _id: z.string(), date: z.string().optional(), time: z.string().optional(), status: z.enum(['pending', 'confirmed', 'cancelled', 'waitlist']).optional(), driver: z.string().nullable().optional(), vehicle: z.string().nullable().optional(), vehiclePlate: z.string().optional() })).optional(),
+    items: z.array(z.object({ _id: z.string(), date: z.string().optional(), time: z.string().optional(), status: z.enum(['pending', 'confirmed', 'cancelled', 'waitlist']).optional(), driver: z.string().nullable().optional(), vehicle: z.string().nullable().optional(), vehiclePlate: z.string().optional(),
+      price: z.object({ mode: z.enum(['percent', 'amount', 'reset']), value: z.number().optional(), reason: z.string().max(80).optional() }).optional() })).optional(),
+    // Remise en % sur toutes les prestations (0 = prix d'origine)
+    discountAll: z.object({ percent: z.number().min(0).max(100), reason: z.string().max(80).optional() }).optional(),
     note: z.string().optional(),
   }).parse(req.body);
   const b = await Booking.findById(req.params.id);
   if (!b) throw new HttpError(404, 'NOT_FOUND');
   const before = b.toObject();
   let driverChanged = false;
+  const priceNotes = [];
   if (body.customer) Object.assign(b.customer, body.customer);
   for (const it of body.items || []) {
     const sub = b.items.id(it._id);
     if (!sub) continue;
     if (it.driver !== undefined && String(sub.driver || '') !== String(it.driver || '')) driverChanged = true;
-    Object.assign(sub, it);
+    const { price, ...fields } = it;
+    Object.assign(sub, fields);
+    if (price) {
+      const r = applyItemPrice(sub, price);
+      b.totalEur = applyTotal(b.totalEur, r);
+      priceNotes.push(`${sub.title} : ${r.before} € → ${r.after} €${price.mode === 'percent' ? ` (−${price.value || 0} %)` : ''}${price.reason ? ` · ${price.reason}` : ''}`);
+    }
+  }
+  if (body.discountAll) {
+    for (const sub of b.items) {
+      if (sub.status === 'cancelled') continue;
+      const r = applyItemPrice(sub, { mode: 'percent', value: body.discountAll.percent, reason: body.discountAll.reason });
+      b.totalEur = applyTotal(b.totalEur, r);
+    }
+    priceNotes.push(`Remise sur toute la réservation : −${body.discountAll.percent} %${body.discountAll.reason ? ` · ${body.discountAll.reason}` : ''} → ${b.totalEur} €`);
   }
   if (body.collectedAmount != null) { b.collectedAmount = body.collectedAmount; b.collectedCurrency = body.collectedCurrency || 'EUR'; }
   const prevStatus = b.status;
@@ -166,7 +185,7 @@ r.patch('/bookings/:id', allow('manager'), async (req, res) => {
       if (c.noShowCount >= (s.noShowBlockAfter || 2)) { c.blocked = true; await c.save(); }
     }
   }
-  b.history.push({ by: req.user.name || req.user.email, action: body.status ? `status:${body.status}` : 'updated', note: body.note });
+  b.history.push({ by: req.user.name || req.user.email, action: body.status ? `status:${body.status}` : priceNotes.length ? 'prix modifié' : 'updated', note: [body.note, ...priceNotes].filter(Boolean).join(' · ') || undefined });
   await b.save();
   await audit(req, 'update', 'booking', b._id, { status: before.status }, { status: b.status });
   if (body.status && body.status !== prevStatus && ['confirmed', 'cancelled'].includes(body.status)) notifyStatus(b, body.status).catch(console.error);

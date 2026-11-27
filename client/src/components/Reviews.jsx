@@ -76,8 +76,8 @@ export default function Reviews({ excursionId, rating, lang }) {
       <div className="reviews__head">
         {count > 0 ? (
           <div className="reviews__score">
-            <strong>{avg.toFixed(1).replace('.', lang === 'en' ? '.' : ',')}</strong>
-            <div><Stars value={avg} size={20} label={`${avg.toFixed(1)} / 5`} /><small>{t('rev.basedOn', { count })}</small></div>
+            <strong>{t('rev.count', { count })}</strong>
+            <Stars value={avg} size={22} label={`${avg.toFixed(1)} / 5`} />
           </div>
         ) : <p className="muted" style={{ margin: 0 }}>{t('rev.none')}</p>}
         {!open && !st.sent && <button type="button" className="btn btn--outline" onClick={() => setOpen(true)}>{t('rev.write')}</button>}

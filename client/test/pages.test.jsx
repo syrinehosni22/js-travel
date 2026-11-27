@@ -85,7 +85,8 @@ describe('site public', () => {
       expect(await screen.findByRole('heading', { name: 'Avis clients' })).toBeTruthy();
       expect(await screen.findByText('Journée magique')).toBeTruthy();
       expect(screen.getByText('Merci Amel !')).toBeTruthy();
-      expect(screen.getByText('4,5')).toBeTruthy();
+      // « 2 avis » + étoiles (la note est lue « 4.5 / 5 » par les lecteurs d’écran)
+      expect(screen.getAllByRole('img', { name: '4.5 / 5' }).length).toBeGreaterThan(0);
       fireEvent.click(screen.getByRole('button', { name: 'Laisser un avis' }));
       fireEvent.change(screen.getByLabelText(/Prénom/), { target: { value: 'Sami' } });
       // Sans note : message d'erreur, rien n'est envoyé
@@ -174,7 +175,7 @@ describe('site public', () => {
     renderAt('/fr');
     expect(await screen.findByText('Équipe au top')).toBeTruthy();
     // Note : « 5,0 ★★★★★ 1 avis » (étoiles lues « 5 / 5 » par les lecteurs d’écran)
-    expect(screen.getByRole('heading', { name: /5 \/ 5.*1 (avis|review)/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: /1 (avis|review).*5 \/ 5/ })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Votre avis sur JS Travel' }));
     const dialog = await screen.findByRole('dialog', { name: 'Votre avis sur JS Travel' });
     fireEvent.click(within(dialog).getByRole('button', { name: 'Publier mon avis' }));
