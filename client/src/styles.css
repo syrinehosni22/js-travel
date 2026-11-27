@@ -466,7 +466,7 @@ button, input, select { font: inherit; color: inherit; }
 .stars-meter__fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; }
 .reviews__head { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin: 6px 0 16px; }
 .reviews__score { display: flex; align-items: center; gap: 14px; }
-.reviews__score > strong { font-size: 44px; line-height: 1; font-weight: 700; }
+.reviews__score > strong { font-size: 24px; line-height: 1.2; font-weight: 700; }
 .reviews__score > div { display: flex; flex-direction: column; gap: 4px; }
 .reviews__form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 18px; }
 .reviews__form .full { grid-column: 1 / -1; }
@@ -699,3 +699,6 @@ button, input, select { font: inherit; color: inherit; }
 .review-score .stars-meter { align-self: center; }
 .review-score .stars-meter > .stars-row { color: rgba(255,255,255,.22) !important; }
 .review-score__count { font-size: .55em; font-family: var(--font); font-weight: 600; opacity: .85; }
+
+.stars--count { display: inline-flex; align-items: center; gap: 8px; }
+.reviews__score { align-items: center; }

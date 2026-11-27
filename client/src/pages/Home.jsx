@@ -189,9 +189,8 @@ export default function Home() {
         <div className="container">
           <div className="section__head">
             <div><span className="eyebrow">{t('home.reviews')}</span><h2 className="section__title review-score">{shownRating?.rating ? (<>
-              <span>{Number(shownRating.rating).toLocaleString(lang, { minimumFractionDigits: 1, maximumFractionDigits: 1 })}</span>
+              <span>{t('rev.count', { count: +shownRating.count || 0 })}</span>
               <Stars value={+shownRating.rating} size={26} label={`${shownRating.rating} / 5`} />
-              <span className="review-score__count">{t('rev.count', { count: +shownRating.count || 0 })}</span>
             </>) : t('home.reviews')}</h2></div>
             <div className="review-links">
               <button type="button" className="btn btn--gold-outline" onClick={openSiteReview}>{t('rev.leaveSite')}</button>

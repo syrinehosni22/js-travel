@@ -171,6 +171,8 @@ export function PriceLines({ lines = [] }) {
     if (l.key === 'guide') return `${t('price.guide')}${l.qty > 1 ? ` × ${l.qty}` : ''}`;
     if (l.key === 'cityTransfer') return `${t('price.cityTransfer')} (${l.label})${l.qty > 1 ? ` × ${l.qty}` : ''}`;
     if (l.key === 'discount') return `${t('price.discount')} −${Math.round(l.rate * 100)} %`;
+    // Remise ou prix ajusté par l'agence
+    if (l.key === 'adminDiscount') return l.amount < 0 ? `${t('price.discount')}${l.rate ? ` −${Math.round(l.rate * 100)} %` : ''}` : t('price.adjustment');
     if (l.key === 'vehicle') return `${l.qty} ${t('price.vehicle')} × ${money(l.unit)}`;
     return t(`price.${l.key}`);
   };

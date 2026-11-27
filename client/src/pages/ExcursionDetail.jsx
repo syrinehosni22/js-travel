@@ -10,7 +10,7 @@ import NotFound from './NotFound.jsx';
 import RouteMap from '../components/RouteMap.jsx';
 import { parseVideo } from '../components/About.jsx';
 import { allVideos } from '../lib/videos.js';
-import Reviews from '../components/Reviews.jsx';
+import Reviews, { Stars } from '../components/Reviews.jsx';
 import { waLink } from '../whatsapp.js';
 
 const PH = ['#C7D8EA', '#EAD3B2', '#BFE0DD', '#D7D9B8', '#E3C9AE'];
@@ -174,7 +174,7 @@ export default function ExcursionDetail() {
           <div className="row" style={{ gap: 8 }}>{e.badges?.map((b) => <span key={b} className={`tag tag--${b}`}>{t(`badge.${b}`)}</span>)}</div>
           <h1>{seo.h1 || e.title}</h1>
           <div className="gyg-head__meta">
-            {e.rating?.value && <a href="#reviews" className="stars"><Icon name="star" size={16} /> <b>{e.rating.value}</b> ({t('detail.reviewsN', { n: e.rating.count })})</a>}
+            {e.rating?.value && <a href="#reviews" className="stars stars--count">{t('rev.count', { count: e.rating.count || 0 })} <Stars value={+e.rating.value} size={16} label={`${e.rating.value} / 5`} /></a>}
             {e.durationLabel && <span><Icon name="clock" size={16} /> {e.durationLabel}</span>}
             {cities.length > 0 && <span><Icon name="pin" size={16} /> {cities.join(', ')}</span>}
           </div>
